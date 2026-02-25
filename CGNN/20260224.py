@@ -271,222 +271,231 @@ class CGDN(nn.Module):
 
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
-
-# ═══════════════════════════════════════════════════════════
-#  Physics-Informed Loss Functions
-# ═══════════════════════════════════════════════════════════
-
-def compute_smoothness_loss(new_coords, edge_index):
-    """
-    L_smooth – Laplacian Smoothing
-    인접 노드 간의 변위 차이를 규제하여 매끄러운 곡선을 유도합니다.
-    (CAD 서피스 생성이 용이한 형상)
-    """
-    src, dst = edge_index
-    diff = new_coords[src] - new_coords[dst]
-    return torch.mean(torch.norm(diff, dim=1) ** 2)
-
-
-def compute_collision_loss(new_coords, layer_ids, margin=0.5):
-    """
-    L_collision – 레이어 간 간섭(자기교차) 방지 소프트 페널티
-    Inner(layer_id=0)와 Outer(layer_id=1) 레이어가 서로 겹치거나
-    최소 간격(margin) 이하로 가까워지는 것을 방지합니다.
-
-    Parameters
-    ----------
-    new_coords : [N, 2]
-    layer_ids  : [N]    (0=Inner, 1=Outer)
-    margin     : float  최소 허용 간격 (mm)
-    """
-    inner_mask = (layer_ids == 0)
-    outer_mask = (layer_ids == 1)
-
-    if inner_mask.sum() == 0 or outer_mask.sum() == 0:
-        return torch.tensor(0.0, device=new_coords.device)
-
-    inner_y = new_coords[inner_mask, 1]   # [N_in]
-    outer_y = new_coords[outer_mask, 1]   # [N_out]
-
-    # Inner의 최대 y가 Outer의 최소 y보다 작아야 함 (+ margin)
-    # 위반량 = max(0, inner_max_y − outer_min_y + margin)
-    gap_violation = torch.clamp(inner_y.max() - outer_y.min() + margin, min=0.0)
-    return gap_violation ** 2
-
-
-def compute_mass_loss(new_coords, t, edge_index):
-    """
-    L_mass – 경량화 보조 손실
-    단면적 = Σ (segment_length_i × t_i) 를 최소화하여
-    Mp를 만족하는 여러 해 중 가장 가벼운 해를 선택하도록 유도합니다.
-    """
-    src, dst = edge_index
-    seg_len = torch.norm(new_coords[src] - new_coords[dst], dim=1)   # [E]
-    t_src = t[src].squeeze(-1)
-    area = torch.sum(seg_len * t_src)
-    return area
-
-
-# ═══════════════════════════════════════════════════════════
-#  Training Step
-# ═══════════════════════════════════════════════════════════
-
-def train_step(model, data, optimizer, target_mp_value,
-               w_phys=1.0, w_smooth=0.1, w_mass=0.01,
-               w_collision=1.0, w_fix=10.0):
-    """
-    L_total = w1·L_phys + w2·L_smooth + w3·L_mass + w4·L_collision + w5·L_fix
-    """
-    model.train()
-    optimizer.zero_grad()
-
-    # ── 데이터 추출 ──
-    x          = data.x                          # [N, 6]
-    edge_index = data.edge_index                 # [2, E]
-    edge_attr  = data.edge_attr                  # [E, 4]
-
-    is_fixed_mask = x[:, 2].bool().unsqueeze(1)  # [N, 1]
-    layer_ids     = x[:, 3]                      # [N]  (0=Inner, 1=Outer)
-    t             = x[:, 4].unsqueeze(1)         # [N, 1]
-    fy            = x[:, 5].unsqueeze(1)         # [N, 1]
-
-    target_mp = torch.tensor(
-        [[target_mp_value]], dtype=torch.float32, device=x.device
-    )
-
-    # ── 1. Forward Pass (형상 변형 예측) ──
-    new_coords, delta_coords = model(
-        x, edge_index, edge_attr, target_mp, is_fixed_mask
-    )
-
-    # ── 2. Differentiable Mp 계산 (Implicit PNA Solver) ──
-    pred_mp = calculate_mpl(new_coords, t, fy, edge_index)
-
-    # ── 3. 다목적 Physics-Informed 손실 함수 ──
-
-    # L_phys: 목표 Mp 대비 상대 오차 제곱
-    l_phys = ((pred_mp - target_mp) / target_mp) ** 2
-
-    # L_smooth: 형상 연속성 (Laplacian smoothing)
-    l_smooth = compute_smoothness_loss(new_coords, edge_index)
-
-    # L_mass: 경량화 (단면적 최소화)
-    l_mass = compute_mass_loss(new_coords, t, edge_index)
-
-    # L_collision: 레이어 간 간섭 방지
-    l_collision = compute_collision_loss(new_coords, layer_ids)
-
-    # L_fix: 고정점 위반 페널티
-    fixed_nodes = is_fixed_mask.squeeze()       # [N]
-    if fixed_nodes.any():
-        l_fix = torch.sum(torch.norm(delta_coords[fixed_nodes], dim=1))
-    else:
-        l_fix = torch.tensor(0.0, device=x.device)
-
-    # ── Total Loss ──
-    loss = (w_phys     * l_phys
-          + w_smooth   * l_smooth
-          + w_mass     * l_mass
-          + w_collision * l_collision
-          + w_fix      * l_fix)
-
-    # ── 4. Backward & Optimize ──
-    loss.backward()
-    optimizer.step()
-
-    return {
-        "loss":        loss.item(),
-        "pred_mp":     pred_mp.item(),
-        "l_phys":      l_phys.item(),
-        "l_smooth":    l_smooth.item(),
-        "l_mass":      l_mass.item(),
-        "l_collision": l_collision.item(),
-        "l_fix":       l_fix.item() if isinstance(l_fix, torch.Tensor) else l_fix,
-        "new_coords":  new_coords.detach(),
-    }
-
-
-# ═══════════════════════════════════════════════════════════
-#  실행 예시 (Dummy Data)
-# ═══════════════════════════════════════════════════════════
-if __name__ == "__main__":
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device}")
-
-    # ── 모델 초기화 ──
-    model = CGDN(
-        in_channels=6, hidden_channels=128,
-        num_layers=4, heads=4, edge_dim=4,
-    ).to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-
-    # ── Dummy PyG Data 생성 ──
-    from torch_geometric.data import Data
-    num_nodes = 50
-
-    # 노드 특징: [x, y, is_fixed, layer_id, t, fy]
-    dummy_x = torch.rand((num_nodes, 6)).to(device)
-    dummy_x[:, 2] = torch.randint(0, 2, (num_nodes,)).float()   # 고정점 여부
-    dummy_x[:, 3] = torch.randint(0, 2, (num_nodes,)).float()   # Inner(0) / Outer(1)
-    dummy_x[:, 4] = 1.5       # 두께 1.5 mm
-    dummy_x[:, 5] = 1500.0    # 항복강도 1500 MPa
-
-    # 엣지: 인접 노드 연결 (체인 그래프 + 약간의 랜덤)
-    src = torch.arange(0, num_nodes - 1)
-    dst = torch.arange(1, num_nodes)
-    extra_src = torch.randint(0, num_nodes, (50,))
-    extra_dst = torch.randint(0, num_nodes, (50,))
-    dummy_edge_index = torch.cat([
-        torch.stack([src, dst]),
-        torch.stack([dst, src]),
-        torch.stack([extra_src, extra_dst]),
-    ], dim=1).to(device)
-
-    num_edges = dummy_edge_index.shape[1]
-    # 엣지 특징: [길이, 각도, 레이어_ID, 플랜지_여부]
-    dummy_edge_attr = torch.rand((num_edges, 4)).to(device)
-
-    data = Data(x=dummy_x, edge_index=dummy_edge_index, edge_attr=dummy_edge_attr)
-    target_mp_req = 4500.0   # 목표 전소성 모멘트 (kN·mm)
-
-    # ── Training Loop ──
-    print("=" * 60)
-    print("C-GDN Training (Dummy Data)")
-    print("=" * 60)
-    for epoch in range(100):
-        info = train_step(model, data, optimizer, target_mp_req)
-        if epoch % 10 == 0:
-            print(
-                f"Epoch {epoch:03d} | "
-                f"Loss: {info['loss']:.4f} | "
-                f"Mp: {info['pred_mp']:.1f} / {target_mp_req:.1f} | "
-                f"L_phys: {info['l_phys']:.4f}  "
-                f"L_smooth: {info['l_smooth']:.4f}  "
-                f"L_collision: {info['l_collision']:.4f}"
-            )
-
-
-# In[ ]:
-
-
+from torch_geometric.data import Data
+from torch_geometric.nn import GATv2Conv, LayerNorm
 import matplotlib.pyplot as plt
 import numpy as np
 
 # ═══════════════════════════════════════════════════════════
-#  B-Pillar 단면 형상 시각화 (노드 & 엣지)
+# 1. Physics-Informed Module (Implicit PNA Solver)
 # ═══════════════════════════════════════════════════════════
+class ImplicitPNASolver(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, coords, t, fy, edge_index):
+        with torch.no_grad():
+            y_min, y_max = coords[:, 1].min(), coords[:, 1].max()
+            y_pna = (y_min + y_max) / 2.0
 
+            for _ in range(20):
+                force_tension = torch.sum(t * fy * torch.relu(coords[:, 1] - y_pna))
+                force_comp = torch.sum(t * fy * torch.relu(y_pna - coords[:, 1]))
+                if force_tension > force_comp:
+                    y_min = y_pna
+                else:
+                    y_max = y_pna
+                y_pna = (y_min + y_max) / 2.0
+
+        d = torch.abs(coords[:, 1] - y_pna)
+        area = t * 1.0 
+        mp_pred = torch.sum(area * fy * d)
+
+        ctx.save_for_backward(coords, t, fy, y_pna, edge_index)
+        return mp_pred
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        coords, t, fy, y_pna, edge_index = ctx.saved_tensors
+        sign_d = torch.sign(coords[:, 1] - y_pna).unsqueeze(1)
+
+        grad_coords = torch.zeros_like(coords)
+        grad_coords[:, 1] = grad_output * (t * fy).squeeze() * sign_d.squeeze()
+        return grad_coords, None, None, None
+
+def calculate_mpl(coords, t, fy, edge_index):
+    return ImplicitPNASolver.apply(coords, t, fy, edge_index)
+
+# ═══════════════════════════════════════════════════════════
+# 2. GNN Architecture (C-GDN)
+# ═══════════════════════════════════════════════════════════
+class CGDN(nn.Module):
+    def __init__(self, in_channels=6, hidden_channels=128, num_layers=4):
+        super(CGDN, self).__init__()
+        self.node_encoder = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            LayerNorm(hidden_channels),
+            nn.GELU()
+        )
+        self.film_gen = nn.Sequential(
+            nn.Linear(1, 64),
+            nn.GELU(),
+            nn.Linear(64, hidden_channels * 2)
+        )
+        self.convs = nn.ModuleList()
+        self.norms = nn.ModuleList()
+        for _ in range(num_layers):
+            self.convs.append(GATv2Conv(hidden_channels, hidden_channels // 4, heads=4, edge_dim=4))
+            self.norms.append(LayerNorm(hidden_channels))
+
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_channels, 64),
+            nn.GELU(),
+            nn.Linear(64, 2)
+        )
+
+    def forward(self, x, edge_index, edge_attr, target_mp, is_fixed_mask):
+        h = self.node_encoder(x)
+        film_params = self.film_gen(target_mp)
+        gamma, beta = torch.chunk(film_params, 2, dim=-1)
+
+        for conv, norm in zip(self.convs, self.norms):
+            h_residual = h
+            h = conv(h, edge_index, edge_attr)
+            h = gamma * h + beta
+            h = norm(h)
+            h = F.gelu(h)
+            h = h + h_residual 
+
+        delta_coords = self.decoder(h)
+        delta_coords = delta_coords * (~is_fixed_mask).float()
+        new_coords = x[:, :2] + delta_coords
+        return new_coords, delta_coords
+
+# ═══════════════════════════════════════════════════════════
+# 3. Loss Functions & Train Step
+# ═══════════════════════════════════════════════════════════
+def compute_smoothness_loss(new_coords, edge_index):
+    src, dst = edge_index
+    diff = new_coords[src] - new_coords[dst]
+    return torch.mean(torch.norm(diff, dim=1) ** 2)
+
+def compute_collision_loss(new_coords, layer_ids, margin=0.5):
+    inner_mask = (layer_ids == 0)
+    outer_mask = (layer_ids == 1)
+    if inner_mask.sum() == 0 or outer_mask.sum() == 0:
+        return torch.tensor(0.0, device=new_coords.device)
+
+    inner_y = new_coords[inner_mask, 1]
+    outer_y = new_coords[outer_mask, 1]
+    gap_violation = torch.clamp(inner_y.max() - outer_y.min() + margin, min=0.0)
+    return gap_violation ** 2
+
+def compute_mass_loss(new_coords, t, edge_index):
+    src, dst = edge_index
+    seg_len = torch.norm(new_coords[src] - new_coords[dst], dim=1)
+    t_src = t[src].squeeze(-1)
+    area = torch.sum(seg_len * t_src)
+    return area
+
+def train_step(model, data, optimizer, target_mp_value,
+               w_phys=1.0, w_smooth=0.1, w_mass=0.01,
+               w_collision=1.0, w_fix=10.0):
+    model.train()
+    optimizer.zero_grad()
+
+    x          = data.x
+    edge_index = data.edge_index
+    edge_attr  = data.edge_attr
+
+    is_fixed_mask = x[:, 2].bool().unsqueeze(1)
+    layer_ids     = x[:, 3] 
+    t             = x[:, 4].unsqueeze(1)
+    fy            = x[:, 5].unsqueeze(1)
+
+    target_mp = torch.tensor([[target_mp_value]], dtype=torch.float32, device=x.device)
+
+    new_coords, delta_coords = model(x, edge_index, edge_attr, target_mp, is_fixed_mask)
+    pred_mp = calculate_mpl(new_coords, t, fy, edge_index)
+
+    l_phys = ((pred_mp - target_mp) / target_mp) ** 2
+    l_smooth = compute_smoothness_loss(new_coords, edge_index)
+    l_mass = compute_mass_loss(new_coords, t, edge_index)
+    l_collision = compute_collision_loss(new_coords, layer_ids)
+
+    fixed_nodes = is_fixed_mask.squeeze()
+    l_fix = torch.sum(torch.norm(delta_coords[fixed_nodes], dim=1)) if fixed_nodes.any() else torch.tensor(0.0, device=x.device)
+
+    loss = (w_phys * l_phys + w_smooth * l_smooth + w_mass * l_mass + 
+            w_collision * l_collision + w_fix * l_fix)
+
+    loss.backward()
+    optimizer.step()
+
+    return {
+        "loss": loss.item(),
+        "pred_mp": pred_mp.item(),
+        "l_phys": l_phys.item(),
+        "l_smooth": l_smooth.item(),
+        "l_mass": l_mass.item(),
+        "l_collision": l_collision.item(),
+        "l_fix": l_fix.item() if isinstance(l_fix, torch.Tensor) else l_fix,
+        "new_coords": new_coords.detach(),
+    }
+
+# ═══════════════════════════════════════════════════════════
+# 4. Data Generation
+# ═══════════════════════════════════════════════════════════
+def create_bpillar_base_model(device):
+    outer_coords = [
+        [0.0, 0.0], [15.0, 0.0], [25.0, 40.0], [35.0, 45.0], [50.0, 45.0],
+        [65.0, 45.0], [75.0, 40.0], [85.0, 0.0], [100.0, 0.0], [115.0, 0.0]
+    ]
+    inner_coords = [
+        [0.0, 0.0], [15.0, 0.0], [25.0, -5.0], [35.0, -10.0], [50.0, -10.0],
+        [65.0, -10.0], [75.0, -10.0], [85.0, -5.0], [100.0, 0.0], [115.0, 0.0]
+    ]
+
+    coords = torch.tensor(outer_coords + inner_coords, dtype=torch.float32)
+    num_nodes = coords.shape[0]
+
+    is_fixed = torch.zeros(num_nodes, dtype=torch.float32)
+    is_fixed[[0, 9, 10, 19]] = 1.0 
+
+    layer_id = torch.zeros(num_nodes, dtype=torch.float32)
+    layer_id[0:10] = 1.0 
+
+    t = torch.zeros(num_nodes, dtype=torch.float32)
+    t[0:10] = 1.5 
+    t[10:20] = 1.2 
+
+    fy = torch.zeros(num_nodes, dtype=torch.float32)
+    fy[0:10] = 1500.0 
+    fy[10:20] = 800.0 
+
+    x = torch.cat([coords, is_fixed.unsqueeze(1), layer_id.unsqueeze(1), 
+                   t.unsqueeze(1), fy.unsqueeze(1)], dim=1).to(device)
+
+    src, dst = [], []
+    for i in range(9):
+        src.extend([i, i+1])
+        dst.extend([i+1, i])
+    for i in range(10, 19):
+        src.extend([i, i+1])
+        dst.extend([i+1, i])
+
+    flange_pairs = [(0, 10), (1, 11), (8, 18), (9, 19)]
+    for p in flange_pairs:
+        src.extend([p[0], p[1]])
+        dst.extend([p[1], p[0]])
+
+    edge_index = torch.tensor([src, dst], dtype=torch.long).to(device)
+
+    num_edges = edge_index.shape[1]
+    edge_attr = torch.zeros((num_edges, 4), dtype=torch.float32).to(device)
+    for idx in range(num_edges):
+        p1 = coords[edge_index[0, idx]]
+        p2 = coords[edge_index[1, idx]]
+        edge_attr[idx, 0] = torch.norm(p1 - p2)
+
+    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+# ═══════════════════════════════════════════════════════════
+# 5. Visualization
+# ═══════════════════════════════════════════════════════════
 def visualize_section(coords, edge_index, x_features, title="B-Pillar Cross Section",
                       deformed_coords=None, figsize=(14, 7)):
-    """
-    Parameters
-    ----------
-    coords         : [N, 2]  노드 좌표 (x, y)
-    edge_index     : [2, E]  엣지 인덱스
-    x_features     : [N, 6]  노드 특징 [x, y, is_fixed, layer_id, t, fy]
-    deformed_coords: [N, 2]  변형 후 좌표 (선택)
-    """
     is_fixed  = x_features[:, 2].cpu().numpy().astype(bool)
     layer_ids = x_features[:, 3].cpu().numpy().astype(int)
     coords_np = coords.cpu().detach().numpy()
@@ -498,16 +507,13 @@ def visualize_section(coords, edge_index, x_features, title="B-Pillar Cross Sect
         axes = [axes]
 
     def _draw(ax, pts, subtitle):
-        # ── 엣지 그리기 ──
         for i in range(ei.shape[1]):
             s, d = ei[0, i], ei[1, i]
-            ax.plot([pts[s, 0], pts[d, 0]],
-                    [pts[s, 1], pts[d, 1]],
+            ax.plot([pts[s, 0], pts[d, 0]], [pts[s, 1], pts[d, 1]],
                     color='#b0b0b0', linewidth=0.6, zorder=1)
 
-        # ── 노드 그리기 (레이어별 색상, 고정/자유 마커) ──
-        colors_map = {0: '#2196F3', 1: '#FF5722'}   # Inner=파랑, Outer=주황
-        marker_map = {True: 's', False: 'o'}         # 고정=사각, 자유=원
+        colors_map = {0: '#2196F3', 1: '#FF5722'}   
+        marker_map = {True: 's', False: 'o'}        
         label_map  = {True: 'Fixed', False: 'Free'}
         layer_name = {0: 'Inner', 1: 'Outer'}
 
@@ -518,17 +524,14 @@ def visualize_section(coords, edge_index, x_features, title="B-Pillar Cross Sect
                     continue
                 lbl = f'{layer_name[lid]} ({label_map[fix]})'
                 ax.scatter(pts[mask, 0], pts[mask, 1],
-                           c=colors_map[lid],
-                           marker=marker_map[fix],
+                           c=colors_map[lid], marker=marker_map[fix],
                            s=50, edgecolors='k', linewidths=0.5,
                            zorder=3, label=lbl)
 
-        # ── 노드 인덱스 표시 ──
         for i in range(len(pts)):
             ax.annotate(str(i), (pts[i, 0], pts[i, 1]),
                         fontsize=6, ha='center', va='bottom',
-                        xytext=(0, 4), textcoords='offset points',
-                        color='#555555')
+                        xytext=(0, 4), textcoords='offset points', color='#555555')
 
         ax.set_title(subtitle, fontsize=13, fontweight='bold')
         ax.set_xlabel('x (mm)')
@@ -537,39 +540,61 @@ def visualize_section(coords, edge_index, x_features, title="B-Pillar Cross Sect
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=8, loc='upper right')
 
-    # ── 원본(Base) 형상 ──
     _draw(axes[0], coords_np, f'{title} — Base Shape')
 
-    # ── 변형(Deformed) 형상 ──
     if deformed_coords is not None:
         def_np = deformed_coords.cpu().detach().numpy()
         _draw(axes[1], def_np, f'{title} — Deformed Shape')
 
-        # 변위 화살표 오버레이
         for i in range(len(coords_np)):
             dx = def_np[i, 0] - coords_np[i, 0]
             dy = def_np[i, 1] - coords_np[i, 1]
             if np.sqrt(dx**2 + dy**2) > 1e-4:
-                axes[1].annotate('',
-                    xy=(def_np[i, 0], def_np[i, 1]),
-                    xytext=(coords_np[i, 0], coords_np[i, 1]),
-                    arrowprops=dict(arrowstyle='->', color='red', lw=1.0, alpha=0.6))
+                axes[1].annotate('', xy=(def_np[i, 0], def_np[i, 1]),
+                                 xytext=(coords_np[i, 0], coords_np[i, 1]),
+                                 arrowprops=dict(arrowstyle='->', color='red', lw=1.0, alpha=0.6))
 
     plt.tight_layout()
     plt.show()
 
-
 # ═══════════════════════════════════════════════════════════
-#  시각화 실행
+# 6. Main Execution
 # ═══════════════════════════════════════════════════════════
-base_coords = data.x[:, :2]              # 초기 좌표
-deformed    = info['new_coords']         # 학습 후 변형 좌표
+if __name__ == "__main__":
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device}")
 
-visualize_section(
-    coords=base_coords,
-    edge_index=data.edge_index,
-    x_features=data.x,
-    title='B-Pillar Cross Section',
-    deformed_coords=deformed,
-)
+    model = CGDN(in_channels=6, hidden_channels=128, num_layers=4).to(device)
+    optimizer = optim.AdamW(model.parameters(), lr=5e-3, weight_decay=1e-4)
+
+    data = create_bpillar_base_model(device)
+
+    # 베이스 모델의 초기 Mp 계산을 위해 한번 측정해봅니다.
+    initial_mp = calculate_mpl(data.x[:, :2], data.x[:, 4].unsqueeze(1), data.x[:, 5].unsqueeze(1), data.edge_index)
+    print(f"Initial Base Shape Mp: {initial_mp.item():.1f}")
+
+    # 목표 Mp 설정 (초기 Mp보다 약 20% 높게 설정하여 확장을 유도)
+    # target_mp_req = initial_mp.item() * 1.2
+    target_mp_req = 1500000.0
+
+    print("=" * 60)
+    print(f"C-GDN Training | Target Mp: {target_mp_req:.1f}")
+    print("=" * 60)
+
+    for epoch in range(150):
+        info = train_step(model, data, optimizer, target_mp_req)
+        if epoch % 10 == 0:
+            print(f"Epoch {epoch:03d} | Loss: {info['loss']:.4f} | Mp: {info['pred_mp']:.1f} / {target_mp_req:.1f}")
+
+    # 최종 결과 시각화
+    base_coords = data.x[:, :2]
+    deformed = info['new_coords']
+
+    visualize_section(
+        coords=base_coords,
+        edge_index=data.edge_index,
+        x_features=data.x,
+        title='B-Pillar Cross Section Optimization',
+        deformed_coords=deformed,
+    )
 
