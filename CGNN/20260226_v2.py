@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
+
+# In[5]:
+
+
+#!/usr/bin/env python
+# coding: utf-8
 """
 B-Pillar CGNN v2 - Improved Demo Code
 Synod design deliberation 결과 반영:
@@ -87,6 +93,9 @@ class ImplicitPNASolver(torch.autograd.Function):
 
 def calculate_mpl(coords, t, fy, edge_index):
     return ImplicitPNASolver.apply(coords, t, fy, edge_index)
+
+
+# In[6]:
 
 
 ## ─────────────────────────────────────────────────────────────
@@ -325,6 +334,9 @@ def compute_mass_loss(new_coords, t, edge_index):
     return area
 
 
+# In[7]:
+
+
 ## ─────────────────────────────────────────────────────────────
 ## Training Step (v2)
 ## ─────────────────────────────────────────────────────────────
@@ -433,6 +445,9 @@ def train_step(model, data, optimizer, target_mps,
         "l_continuity":  l_continuity.item(),
         "new_coords":    new_coords.detach(),
     }
+
+
+# In[8]:
 
 
 ## ─────────────────────────────────────────────────────────────
@@ -592,6 +607,9 @@ plt.tight_layout()
 plt.show()
 
 
+# In[ ]:
+
+
 ## ─────────────────────────────────────────────────────────────
 ## Initial Mp Check
 ## ─────────────────────────────────────────────────────────────
@@ -619,7 +637,7 @@ if __name__ == "__main__":
     learning_rate = 1e-3
     weight_decay = 1e-4
     max_epochs = 500
-    target_mps = {0: 900000, 1: 900000, 2: 700000}
+    target_mps = {0: 1500000, 1: 1500000, 2: 1000000}
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model = CGDN(
@@ -687,3 +705,124 @@ if __name__ == "__main__":
     plt.suptitle('CGDN v2 Training Loss', fontweight='bold')
     plt.tight_layout()
     plt.show()
+
+
+# In[10]:
+
+
+## ─────────────────────────────────────────────────────────────
+## 2D Section-by-Section Visualization (Base vs Deformed)
+## ─────────────────────────────────────────────────────────────
+def visualize_section(coords, edge_index, x_features, title="B-Pillar Cross Section",
+                        deformed_coords=None, figsize=(14, 5), section_start=0):
+    section_end = section_start + coords.shape[0]
+
+    # 해당 섹션 내부의 엣지만 필터링 (Intra-section edges)
+    mask = (edge_index[0] >= section_start) & (edge_index[0] < section_end) & \
+            (edge_index[1] >= section_start) & (edge_index[1] < section_end)
+    local_edge_index = edge_index[:, mask] - section_start
+
+    is_fixed  = x_features[:, 2].cpu().numpy().astype(bool)
+    part_ids  = x_features[:, 3].cpu().numpy().astype(int)
+    coords_np = coords.cpu().detach().numpy()
+    ei = local_edge_index.cpu().numpy()
+
+    n_plots = 2 if deformed_coords is not None else 1
+    fig, axes = plt.subplots(1, n_plots, figsize=figsize)
+    if n_plots == 1: axes = [axes]
+
+    def _draw(ax, pts, subtitle):
+        # 1. 엣지 렌더링
+        for i in range(ei.shape[1]):
+            s, d = ei[0, i], ei[1, i]
+            ax.plot([pts[s, 0], pts[d, 0]], [pts[s, 1], pts[d, 1]],
+                    color='#b0b0b0', linewidth=1.5, zorder=1)
+
+        # 2. 노드 렌더링 (Outer, Reinf, Inner)
+        colors_map = {0: '#2196F3', 1: '#4CAF50', 2: '#FF5722'} 
+        marker_map = {True: 's', False: 'o'}        
+        label_map  = {True: 'Fixed', False: 'Free'}
+        part_name  = {0: 'Outer', 1: 'Reinf', 2: 'Inner'}
+
+        for lid in [0, 1, 2]:
+            for fix in [True, False]:
+                mask_node = (part_ids == lid) & (is_fixed == fix)
+                if not mask_node.any(): continue
+
+                lbl = f'{part_name[lid]} ({label_map[fix]})'
+                ax.scatter(pts[mask_node, 0], pts[mask_node, 1],
+                            c=colors_map[lid], marker=marker_map[fix],
+                            s=80 if fix else 50, edgecolors='k', linewidths=1.0 if fix else 0.5,
+                            zorder=3, label=lbl)
+
+        # 3. 노드 로컬 인덱스 표시
+        for i in range(len(pts)):
+            ax.annotate(str(i), (pts[i, 0], pts[i, 1]),
+                        fontsize=7, ha='center', va='bottom',
+                        xytext=(0, 5), textcoords='offset points', color='#333333')
+
+        ax.set_title(subtitle, fontsize=12, fontweight='bold')
+        ax.set_xlabel('X (mm)')
+        ax.set_ylabel('Y (mm)')
+        ax.set_aspect('equal')
+        ax.grid(True, alpha=0.3)
+        # Y축 여백 확보 (범례나 텍스트 겹침 방지)
+        y_min, y_max = pts[:, 1].min(), pts[:, 1].max()
+        ax.set_ylim(y_min - 15, y_max + 15)
+        ax.legend(fontsize=8, loc='upper right', bbox_to_anchor=(1.15, 1.05))
+
+    # Base Shape 렌더링
+    _draw(axes[0], coords_np, f'{title} — Base Shape')
+
+    # Deformed Shape 및 변위 화살표 렌더링
+    if deformed_coords is not None:
+        def_np = deformed_coords.cpu().detach().numpy()
+        _draw(axes[1], def_np, f'{title} — Deformed Shape')
+
+        for i in range(len(coords_np)):
+            dx = def_np[i, 0] - coords_np[i, 0]
+            dy = def_np[i, 1] - coords_np[i, 1]
+            if np.sqrt(dx**2 + dy**2) > 1e-3: # 미세 진동 무시
+                axes[1].annotate('',
+                    xy=(def_np[i, 0], def_np[i, 1]),
+                    xytext=(coords_np[i, 0], coords_np[i, 1]),
+                    arrowprops=dict(arrowstyle='->', color='red', lw=1.2, alpha=0.7))
+
+    plt.tight_layout()
+    plt.show()
+
+## ── 시각화 실행부 ──
+# Section 0, 1은 Outer, Reinf, Inner (각 10노드, 총 30)
+# Section 2는 Outer, Inner (각 10노드, 총 20)
+num_nodes_in_section = [30, 30, 20] 
+section_offsets = [0, 30, 60] 
+
+print("\n" + "="*70)
+print("Generating 2D Section Cross-sections...")
+print("="*70)
+
+# 역순 출력: 3층(Top) -> 2층(Mid) -> 1층(Bottom)
+for i in (2, 1, 0):
+    s = section_offsets[i]
+    e = s + num_nodes_in_section[i]
+
+    base_coords = data.x[s:e, :2]              
+    deformed    = info['new_coords'][s:e]      
+    section_features = data.x[s:e, :]
+
+    # 해당 섹션의 초기/최종 Mp값 추출
+    target_mp_val = target_mps[i]
+    initial_mp_val = calculate_mpl(base_coords, section_features[:, 5:6], section_features[:, 6:7], None).item()
+    final_mp_val = info['pred_mp'][i]
+
+    title_str = f'Section {i} (Target Mp: {target_mp_val:.0f} | Init: {initial_mp_val:.0f} → Final: {final_mp_val:.0f})'
+
+    visualize_section(
+        coords=base_coords,
+        edge_index=data.edge_index,
+        x_features=section_features,
+        title=title_str,
+        deformed_coords=deformed,
+        section_start=s,
+    )
+
