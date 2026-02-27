@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[11]:
+
+
+#!/usr/bin/env python
+# coding: utf-8
+
 # In[5]:
 
 
@@ -95,7 +101,7 @@ def calculate_mpl(coords, t, fy, edge_index):
     return ImplicitPNASolver.apply(coords, t, fy, edge_index)
 
 
-# In[6]:
+# In[12]:
 
 
 ## ─────────────────────────────────────────────────────────────
@@ -356,7 +362,7 @@ def compute_mass_loss(new_coords, t, edge_index):
     return area
 
 
-# In[7]:
+# In[13]:
 
 
 ## ─────────────────────────────────────────────────────────────
@@ -364,9 +370,9 @@ def compute_mass_loss(new_coords, t, edge_index):
 ## ─────────────────────────────────────────────────────────────
 
 def train_step(model, data, optimizer, target_mps,
-               w_phys=1000.0, w_smooth=0.1, w_mass=0.0001,
-               w_collision=50.0, w_fix=100.0,
-               w_monotone=30.0, w_continuity=1.0,
+               w_phys=10000000.0, w_smooth=0.01, w_mass=0.0001,
+               w_collision=10.0, w_fix=100.0,
+               w_monotone=10.0, w_continuity=1.0,
                max_grad_norm=1.0):
     """
     v2 변경사항:
@@ -469,7 +475,7 @@ def train_step(model, data, optimizer, target_mps,
     }
 
 
-# In[8]:
+# In[14]:
 
 
 ## ─────────────────────────────────────────────────────────────
@@ -501,25 +507,13 @@ for section in [0, 1, 2]:
 
     for part in parts_in_section:
         for i in range(num_nodes):
-            if part == 1:  # Reinf
-                if i == 0:
-                    x_coord = 1 * (100.0 / 9.0)
-                    y_coord = 0.0
-                elif i == 9:
-                    x_coord = 8 * (100.0 / 9.0)
-                    y_coord = 0.0
-                else:
-                    x_coord = i * (100.0 / 9.0)
-                    y_coord = 35.0
-            else:  # Outer(0), Inner(2)
-                x_coord = i * (100.0 / 9.0)
-                if i in [0, 1, 8, 9]:
-                    y_coord = 0.0
-                else:
-                    y_coord = 20.0 if part == 2 else 50.0
+            x_coord = i * (100.0 / 9.0)
+            if i in [0, 1, 8, 9]:
+                y_coord = 0.0
+            else:
+                y_coord = 20.0 if part == 2 else 30.0 if part == 1 else 50.0
 
-            is_fixed = 1.0 if ((part in [0, 2] and (i in [0, 1, 8, 9])) or
-                               (part == 1 and (i in [0, 9]))) else 0.0
+            is_fixed = 1.0 if (i in [0, 1, 8, 9]) else 0.0
             t_val = 1.5 if part != 1 else 2.0
             fy_val = 1500.0 if part != 2 else 1200.0
 
@@ -629,7 +623,7 @@ plt.tight_layout()
 plt.show()
 
 
-# In[ ]:
+# In[16]:
 
 
 ## ─────────────────────────────────────────────────────────────
@@ -729,7 +723,7 @@ if __name__ == "__main__":
     plt.show()
 
 
-# In[10]:
+# In[27]:
 
 
 ## ─────────────────────────────────────────────────────────────
@@ -847,4 +841,80 @@ for i in (2, 1, 0):
         deformed_coords=deformed,
         section_start=s,
     )
+
+## ─────────────────────────────────────────────────────────────
+## 3D Visualization
+## ─────────────────────────────────────────────────────────────
+def visualize_3d_final_shape(base_coords, new_coords, edge_index, part_ids, section_ids, edge_attr):
+    """
+    최종 형상을 3D로 시각화하는 함수
+    :param base_coords: 초기 좌표 (Base Shape)
+    :param new_coords: 변형된 좌표 (Deformed Shape)
+    :param edge_index: 엣지 연결 정보
+    :param part_ids: 파트 ID (Outer, Reinf, Inner)
+    :param section_ids: 섹션 ID (층 정보)
+    :param edge_attr: 엣지 속성 (edge_type 포함)
+    """
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111, projection='3d')
+
+    base_np = base_coords.cpu().numpy()
+    deformed_np = new_coords.cpu().detach().numpy()
+    edge_np = edge_index.cpu().numpy()
+    part_np = part_ids.cpu().numpy()
+    section_np = section_ids.cpu().numpy()
+    edge_attr_np = edge_attr.cpu().numpy()
+
+    color_map = {0: '#2196F3', 1: '#4CAF50', 2: '#FF5722'}  # Outer, Reinf, Inner 색상
+
+    # 엣지 렌더링 (Base와 Deformed Shape)
+    for i in range(edge_np.shape[1]):
+        u, v = edge_np[:, i]
+        xs_base = [base_np[u, 0], base_np[v, 0]]
+        ys_base = [base_np[u, 1], base_np[v, 1]]
+        zs_base = [section_np[u], section_np[v]]
+
+        xs_def = [deformed_np[u, 0], deformed_np[v, 0]]
+        ys_def = [deformed_np[u, 1], deformed_np[v, 1]]
+        zs_def = [section_np[u], section_np[v]]
+
+        edge_type = edge_attr_np[i, 3]  # edge_type: 0.0 (intra-section), 1.0 (inter-section)
+        if edge_type == 0.0:  # 층 안의 엣지 (진하게)
+            ax.plot(xs_base, ys_base, zs_base, color='#BBBBBB', linestyle='--', linewidth=1.5, alpha=0.7)
+            ax.plot(xs_def, ys_def, zs_def, color='k', linestyle='-', linewidth=2.0, alpha=0.7)
+        elif edge_type == 1.0:  # 층 간의 엣지 (연하게)
+            ax.plot(xs_base, ys_base, zs_base, color='#DDDDDD', linestyle='--', linewidth=1.0, alpha=0.4)
+            ax.plot(xs_def, ys_def, zs_def, color='k', linestyle='-', linewidth=1.0, alpha=0.1)
+
+    # 노드 렌더링 (Deformed Shape)
+    for part_id in [0, 1, 2]:  # Outer, Reinf, Inner
+        mask = (part_np == part_id)
+        ax.scatter(deformed_np[mask, 0], deformed_np[mask, 1], section_np[mask],
+                   c=color_map[part_id], label={0: 'Outer', 1: 'Reinf', 2: 'Inner'}[part_id],
+                   s=50, edgecolors='k', alpha=0.9)
+
+    ax.set_xlabel('X (mm)')
+    ax.set_ylabel('Y (mm)')
+    ax.set_zlabel('Section ID')
+    ax.set_title('3D Visualization of Final Shape', fontsize=14, fontweight='bold')
+    ax.set_zticks([0, 1, 2])
+    ax.view_init(elev=25, azim=-60)
+    ax.legend(loc='upper left', fontsize=10)
+    plt.tight_layout()
+    plt.show()
+
+
+# ── 최종 형상 시각화 실행 ──
+print("\n" + "="*70)
+print("Generating 3D Visualization of Final Shape...")
+print("="*70)
+
+visualize_3d_final_shape(
+    base_coords=data.x[:, :2],               # 초기 좌표
+    new_coords=info['new_coords'],           # 최종 변형된 좌표
+    edge_index=data.edge_index,              # 엣지 연결 정보
+    part_ids=data.x[:, 3],                   # 파트 ID
+    section_ids=data.x[:, 4],                # 섹션 ID
+    edge_attr=data.edge_attr                 # 엣지 속성
+)
 
