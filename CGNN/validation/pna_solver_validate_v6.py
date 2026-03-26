@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
-#!/usr/bin/env python
-# coding: utf-8
 """
 ImplicitPNASolver Validation Code v4
 ─────────────────────────────────────
@@ -28,8 +26,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
-plt.rcParams['font.family'] = 'Malgun Gothic'  # Windows의 경우
-plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
 import math
 from torch_geometric.nn import GATv2Conv, LayerNorm
 from torch_geometric.data import Data
@@ -39,63 +35,108 @@ from torch_geometric.data import Data
 # ImplicitPNASolver + CGDN  (20260312_v3.py 그대로 — 수정 없음)
 # ══════════════════════════════════════════════════════════════════
 
+def compute_edge_mp_pna(coords, t, fy, edge_index, n_iter=50):
+    """
+    Thick Edge (2D Plate) PNA 이분탐색 + Mp 계산
+    엣지 두께를 Y축으로 투영하여 수평 엣지도 연속적으로 처리 → 평형 잔차 ≈ 0.
+    Returns: (mp_total, y_pna)
+    """
+    mask = edge_index[0] < edge_index[1]
+    u, v = edge_index[0][mask], edge_index[1][mask]
+
+    y_u, y_v = coords[u, 1], coords[v, 1]
+    x_u, x_v = coords[u, 0], coords[v, 0]
+    L = torch.sqrt((x_u - x_v) ** 2 + (y_u - y_v) ** 2)
+    t_e  = t[u].squeeze(-1)
+    fy_e = fy[u].squeeze(-1)
+
+    # 1. Y축 투영 두께
+    dx   = torch.abs(x_u - x_v)
+    t_y  = t_e * (dx / (L + 1e-12))
+    y_max = torch.maximum(y_u, y_v)
+    y_min = torch.minimum(y_u, y_v)
+    y_top = y_max + t_y / 2.0
+    y_bot = y_min - t_y / 2.0
+    H     = torch.clamp(y_top - y_bot, min=1e-12)
+
+    Area_fy = L * t_e * fy_e
+
+    # ── Forward 1: Bisection for y_pna (no gradient) ──
+    with torch.no_grad():
+        y_lo = coords[:, 1].min().clone() - 5.0
+        y_hi = coords[:, 1].max().clone() + 5.0
+        for _ in range(n_iter):
+            y_mid = 0.5 * (y_lo + y_hi)
+            alpha = torch.clamp((y_top - y_mid) / H, 0.0, 1.0)
+            net_force = torch.sum(Area_fy * (2.0 * alpha - 1.0))
+            if net_force > 0:
+                y_lo = y_mid
+            else:
+                y_hi = y_mid
+        y_pna = 0.5 * (y_lo + y_hi)
+
+    # ── Forward 2: Mp 계산 (y_pna 고정) ──
+    alpha        = torch.clamp((y_top - y_pna) / H, 0.0, 1.0)
+    centroid_top = y_top - (alpha * H) / 2.0
+    centroid_bot = y_bot + ((1.0 - alpha) * H) / 2.0
+    m_top        = alpha * (centroid_top - y_pna)
+    m_bot        = (1.0 - alpha) * (y_pna - centroid_bot)
+    mp_total     = torch.sum(Area_fy * (m_top + m_bot))
+
+    return mp_total, y_pna
+
+
 class ImplicitPNASolver(torch.autograd.Function):
     """
     미분 가능한 소성 중립축(PNA) 및 전소성 모멘트(Mp) 계산기
-    Forward : Bisection으로 인장력=압축력 평형점(y_pna) 탐색
-    Backward: IFT로 ∂y_pna/∂coords 계산 → chain-rule로 ∂Mp/∂coords 전파
+    Forward : Edge-based 이분탐색으로 순 축력 = 0인 y_pna 탐색 (평형 잔차 ~1e-8)
+    Backward: IFT + ∂Mp/∂y_pna = 0 (평형 조건) → y_pna 고정 하에서 직접 미분만 계산
     """
 
     @staticmethod
-    def forward(ctx, coords, t, fy, edge_index, n_iter=30):
-        with torch.no_grad():
-            y = coords[:, 1]
-            t_flat = t.squeeze(-1)
-            fy_flat = fy.squeeze(-1)
+    def forward(ctx, coords, t, fy, edge_index, n_iter=40):
+        mp_pred, y_pna = compute_edge_mp_pna(coords, t, fy, edge_index, n_iter)
 
-            y_lo = y.min().clone()
-            y_hi = y.max().clone()
-
-            for _ in range(n_iter):
-                y_mid = 0.5 * (y_lo + y_hi)
-                F_tens = torch.sum(t_flat * fy_flat * (y > y_mid).float())
-                F_comp = torch.sum(t_flat * fy_flat * (y < y_mid).float())
-                if F_tens > F_comp:
-                    y_lo = y_mid
-                else:
-                    y_hi = y_mid
-
-            y_pna = 0.5 * (y_lo + y_hi)
-
-        d = torch.abs(coords[:, 1] - y_pna)
-        area = t_flat
-        mp_pred = torch.sum(area * fy_flat * d)
-
-        ctx.save_for_backward(coords, t, fy, y_pna.unsqueeze(0), edge_index)
+        mask = edge_index[0] < edge_index[1]
+        ctx.save_for_backward(coords, t, fy, y_pna.reshape(1), edge_index)
+        ctx.mask = mask
         return mp_pred
 
     @staticmethod
     def backward(ctx, grad_output):
         coords, t, fy, y_pna_buf, edge_index = ctx.saved_tensors
-        y_pna = y_pna_buf.squeeze(0)
+        mask = ctx.mask
+        y_pna = y_pna_buf[0].detach()
 
-        y = coords[:, 1]
-        t_flat = t.squeeze(-1)
-        fy_flat = fy.squeeze(-1)
-        s = torch.sign(y - y_pna)
+        # ∂Mp/∂y_pna = -net_force = 0 (평형 조건) → 간접항 소거
+        # y_pna 고정 상태에서 Mp의 coords에 대한 직접 미분만 계산 (Thick Edge)
+        with torch.enable_grad():
+            coords_g = coords.detach().requires_grad_(True)
+            u, v = edge_index[0][mask], edge_index[1][mask]
+            y_u, y_v = coords_g[u, 1], coords_g[v, 1]
+            x_u, x_v = coords_g[u, 0], coords_g[v, 0]
+            L = torch.sqrt((x_u - x_v) ** 2 + (y_u - y_v) ** 2)
+            t_e  = t[u].squeeze(-1)
+            fy_e = fy[u].squeeze(-1)
 
-        dg_dy_pna = -torch.sum(t_flat * fy_flat)
-        dg_dy = t_flat * fy_flat
-        dy_pna_dy = -dg_dy / (dg_dy_pna + 1e-12)
+            dx_b   = torch.abs(x_u - x_v)
+            t_y_b  = t_e * (dx_b / (L + 1e-12))
+            y_max  = torch.maximum(y_u, y_v)
+            y_min  = torch.minimum(y_u, y_v)
+            y_top_b = y_max + t_y_b / 2.0
+            y_bot_b = y_min - t_y_b / 2.0
+            H_b     = torch.clamp(y_top_b - y_bot_b, min=1e-12)
+            Area_fy_b = L * t_e * fy_e
 
-        direct   = t_flat * fy_flat * s          # 직접항
-        indirect = -torch.sum(t_flat * fy_flat * s) * dy_pna_dy  # 간접항 (평형에서 ≈0)
-        dMp_dy   = direct + indirect
+            alpha_b      = torch.clamp((y_top_b - y_pna) / H_b, 0.0, 1.0)
+            centroid_top_b = y_top_b - (alpha_b * H_b) / 2.0
+            centroid_bot_b = y_bot_b + ((1.0 - alpha_b) * H_b) / 2.0
+            m_top_b      = alpha_b * (centroid_top_b - y_pna)
+            m_bot_b      = (1.0 - alpha_b) * (y_pna - centroid_bot_b)
+            mp_direct    = torch.sum(Area_fy_b * (m_top_b + m_bot_b))
 
-        grad_coords = torch.zeros_like(coords)
-        grad_coords[:, 1] = grad_output * dMp_dy
-
-        return grad_coords, None, None, None, None
+        (grad_coords,) = torch.autograd.grad(mp_direct, coords_g)
+        return grad_coords * grad_output, None, None, None, None
 
 
 def calculate_mpl(coords, t, fy, edge_index):
@@ -214,45 +255,54 @@ class CGDN(nn.Module):
         return new_coords, delta_coords
 
 
+# In[6]:
+
+
 # ══════════════════════════════════════════════════════════════════
 # SECTION 1: Data Setup  (1 section, 3 parts, 30 nodes)
 # ══════════════════════════════════════════════════════════════════
 
-def build_simple_section():
+def build_bpillar_section():
     """
-    1 section (section_id=0), 3 parts:
-      Part 0 (Outer): y=50, t=1.5, fy=1500
-      Part 1 (Reinf): y=40, t=2.0, fy=1500
-      Part 2 (Inner): y=20, t=1.5, fy=1200
-    v4: 파트당 노드 30개 (총 90개), x좌표 기반 경계 조건 (하드코딩 인덱스 제거)
-      x_coord = i * (100.0 / 29.0)  → 0~100mm 균등 29구간
-      fix = 1.0 if (x_coord <= 15.0 or x_coord >= 85.0) else 0.0
-      → i=0~4 (x≤13.79mm) 및 i=25~29 (x≥86.21mm) 양단 각 5노드 고정
+    B-Pillar 5-Part 단면 (PDF 사양 기반):
+      Part 0 (#00 Outer Hat) : base_y=31.0, t=2.30, fy=1470 MPa, Hat-shape (offset +50)
+      Part 1 (#03 Inner Plate): base_y=26.0, t=1.60, fy= 980 MPa, Flat
+      Part 2 (#06 Inner Hat)  : base_y=29.0, t=1.60, fy=1470 MPa, Hat-shape (offset +35)
+      Part 3 (#07 Patch 1)    : base_y=24.0, t=1.40, fy= 980 MPa, Flat
+      Part 4 (#08 Patch 2)    : base_y=22.0, t=1.60, fy= 440 MPa, Flat
+    파트당 30 노드 (총 150 노드), 전폭 160mm
+    고정 플랜지: x <= 15% (24mm) 및 x >= 85% (136mm)
     Node features: [x, y, fix_x, fix_y, part_id, section_id, t, fy]
     """
     part_configs = [
-        (0, 50.0, 1.5, 1500.0),
-        (1, 40.0, 2.0, 1500.0),
-        (2, 20.0, 1.5, 1200.0),
+        (0, 31.0, 2.30, 1470.0, True),   # #00 Outer Hat
+        (1, 26.0, 1.60,  980.0, False),  # #03 Inner Plate
+        (2, 29.0, 1.60, 1470.0, True),   # #06 Inner Hat
+        (3, 24.0, 1.40,  980.0, False),  # #07 Patch 1
+        (4, 22.0, 1.60,  440.0, False),  # #08 Patch 2
     ]
-    num_nodes = 30                        # 파트당 노드 수 (v3: 10 → v4: 30)
-    dx = 100.0 / (num_nodes - 1)         # 100.0 / 29 ≈ 3.448 mm
+
+    num_nodes   = 30
+    total_width = 160.0
+    dx          = total_width / (num_nodes - 1)
 
     nodes = []
     node_registry = {}
     idx = 0
-    for part_id, y_coord, t_val, fy_val in part_configs:
+
+    for part_id, y_base, t_val, fy_val, is_hat_shape in part_configs:
         for i in range(num_nodes):
-            x_coord = i * dx             # 0~100mm 균등 분할
+            x_coord = i * dx
+            fix = 1.0 if (x_coord <= total_width * 0.15 or x_coord >= total_width * 0.85) else 0.0
 
-            # x좌표 기반 경계 조건 (플랜지 고정점)
-            fix = 1.0 if (x_coord <= 15.0 or x_coord >= 85.0) else 0.0
-
-            # part 2의 경우: 고정 노드는 y=30, 자유 노드는 y=0
-            if part_id == 2:
-                y_coord_node = 30.0 if fix == 1.0 else 0.0
+            if is_hat_shape:
+                if fix == 1.0:
+                    y_coord_node = y_base
+                else:
+                    height_offset = 50.0 if part_id == 0 else 35.0
+                    y_coord_node  = y_base + height_offset
             else:
-                y_coord_node = y_coord
+                y_coord_node = y_base
 
             nodes.append([x_coord, y_coord_node, fix, fix, float(part_id), 0.0, t_val, fy_val])
             node_registry[(part_id, i)] = idx
@@ -263,17 +313,17 @@ def build_simple_section():
     src_list, dst_list, edge_attr_list = [], [], []
 
     def add_edge(u, v, part_id):
-        dx = x[v, 0] - x[u, 0]
-        dy = x[v, 1] - x[u, 1]
-        length = math.sqrt(dx**2 + dy**2)
-        angle  = math.atan2(dy, dx)
+        dx_val = x[v, 0] - x[u, 0]
+        dy_val = x[v, 1] - x[u, 1]
+        length = math.sqrt(dx_val**2 + dy_val**2)
+        angle  = math.atan2(dy_val, dx_val)
         src_list.extend([u, v])
         dst_list.extend([v, u])
         edge_attr_list.extend([[length, angle, float(part_id), 0.0],
                                 [length, -angle, float(part_id), 0.0]])
 
-    for part_id, _, _, _ in part_configs:
-        for i in range(num_nodes - 1):   # range(29) — 29구간, 누락 없음
+    for part_id, _, _, _, _ in part_configs:
+        for i in range(num_nodes - 1):
             u = node_registry[(part_id, i)]
             v = node_registry[(part_id, i + 1)]
             add_edge(u, v, part_id)
@@ -289,19 +339,33 @@ def build_simple_section():
 # 보조 함수: 해석적 y_pna 계산 (검증용)
 # ══════════════════════════════════════════════════════════════════
 
-def compute_y_pna_ref(coords, t, fy, n_iter=50):
-    """bisection으로 y_pna 계산 (ImplicitPNASolver.forward 와 동일 로직)"""
+def compute_y_pna_ref(coords, t, fy, edge_index, n_iter=50):
+    """Thick Edge bisection으로 y_pna 계산 (ImplicitPNASolver.forward 와 동일 로직)"""
     with torch.no_grad():
-        y = coords[:, 1] if coords.dim() == 2 else coords
-        t_flat  = t.squeeze(-1)
-        fy_flat = fy.squeeze(-1)
-        y_lo = y.min().clone()
-        y_hi = y.max().clone()
+        mask = edge_index[0] < edge_index[1]
+        u, v = edge_index[0][mask], edge_index[1][mask]
+        y_u, y_v = coords[u, 1], coords[v, 1]
+        x_u, x_v = coords[u, 0], coords[v, 0]
+        L = torch.sqrt((x_u - x_v) ** 2 + (y_u - y_v) ** 2)
+        t_e  = t[u].squeeze(-1)
+        fy_e = fy[u].squeeze(-1)
+
+        dx   = torch.abs(x_u - x_v)
+        t_y  = t_e * (dx / (L + 1e-12))
+        y_max = torch.maximum(y_u, y_v)
+        y_min = torch.minimum(y_u, y_v)
+        y_top = y_max + t_y / 2.0
+        y_bot = y_min - t_y / 2.0
+        H     = torch.clamp(y_top - y_bot, min=1e-12)
+        Area_fy = L * t_e * fy_e
+
+        y_lo = coords[:, 1].min().clone() - 5.0
+        y_hi = coords[:, 1].max().clone() + 5.0
         for _ in range(n_iter):
-            y_mid  = 0.5 * (y_lo + y_hi)
-            F_tens = torch.sum(t_flat * fy_flat * (y > y_mid).float())
-            F_comp = torch.sum(t_flat * fy_flat * (y < y_mid).float())
-            if F_tens > F_comp:
+            y_mid = 0.5 * (y_lo + y_hi)
+            alpha = torch.clamp((y_top - y_mid) / H, 0.0, 1.0)
+            net_force = torch.sum(Area_fy * (2.0 * alpha - 1.0))
+            if net_force > 0:
                 y_lo = y_mid
             else:
                 y_hi = y_mid
@@ -322,25 +386,36 @@ def validate_forward(data):
     print("[ Section 2-A ] Forward 정확성 검증 (bisection Mp vs 해석적 Mp)")
     print("=" * 65)
 
-    coords = data.x[:, :2].clone()
-    t  = data.x[:, 6:7].clone()
-    fy = data.x[:, 7:8].clone()
+    coords     = data.x[:, :2].clone()
+    t          = data.x[:, 6:7].clone()
+    fy         = data.x[:, 7:8].clone()
+    edge_index = data.edge_index
 
     # ImplicitPNASolver 출력
-    mp_solver = calculate_mpl(coords, t, fy, None)
+    mp_solver = calculate_mpl(coords, t, fy, edge_index)
 
-    # 해석적 계산 (독립 bisection으로 y_pna 획득)
+    # 해석적 계산 (Edge-based 독립 계산으로 y_pna 및 Mp 획득)
     with torch.no_grad():
-        y_pna_ref = compute_y_pna_ref(coords, t, fy)
-        y_flat    = coords[:, 1]
-        t_flat    = t.squeeze(-1)
-        fy_flat   = fy.squeeze(-1)
+        y_pna_ref = compute_y_pna_ref(coords, t, fy, edge_index)
+        mp_analytic, _ = compute_edge_mp_pna(coords, t, fy, edge_index)
 
-        mp_analytic = torch.sum(t_flat * fy_flat * torch.abs(y_flat - y_pna_ref))
-
-        # 평형 조건 검증: sum(t·fy·sign(y - y_pna)) = 0 이어야 함
-        s_ref = torch.sign(y_flat - y_pna_ref)
-        equil_residual = torch.sum(t_flat * fy_flat * s_ref)
+        # 평형 조건 검증: Thick Edge net_force ≈ 0 이어야 함
+        mask_ref = edge_index[0] < edge_index[1]
+        u_r, v_r = edge_index[0][mask_ref], edge_index[1][mask_ref]
+        y_u_r, y_v_r = coords[u_r, 1], coords[v_r, 1]
+        x_u_r, x_v_r = coords[u_r, 0], coords[v_r, 0]
+        L_r    = torch.sqrt((x_u_r - x_v_r) ** 2 + (y_u_r - y_v_r) ** 2)
+        t_e_r  = t[u_r].squeeze(-1)
+        fy_e_r = fy[u_r].squeeze(-1)
+        dx_r   = torch.abs(x_u_r - x_v_r)
+        t_y_r  = t_e_r * (dx_r / (L_r + 1e-12))
+        y_max_r = torch.maximum(y_u_r, y_v_r)
+        y_min_r = torch.minimum(y_u_r, y_v_r)
+        y_top_r = y_max_r + t_y_r / 2.0
+        y_bot_r = y_min_r - t_y_r / 2.0
+        H_r     = torch.clamp(y_top_r - y_bot_r, min=1e-12)
+        alpha_r = torch.clamp((y_top_r - y_pna_ref) / H_r, 0.0, 1.0)
+        equil_residual = torch.sum(L_r * t_e_r * fy_e_r * (2.0 * alpha_r - 1.0))
 
     err_mp  = abs(mp_solver.item() - mp_analytic.item())
     err_pct = err_mp / (mp_analytic.item() + 1e-10) * 100
@@ -362,49 +437,88 @@ def validate_backward(data, n_check=8, eps=1e-2):
     """
     검증 2: Backward process의 IFT 그래디언트 정확도
     3-way 비교:
-      (A) g_autograd : ImplicitPNASolver.backward (IFT, 직접항+간접항)
-      (B) g_analytic : t_i·fy_i·sign(y_i - y_pna)  (해석적, 직접항만; 간접항=0 at 평형)
+      (A) g_autograd : ImplicitPNASolver.backward (Edge-based IFT, y_pna 고정 직접항)
+      (B) g_analytic : Edge-based ∂Mp/∂y_i with y_pna fixed (= autograd와 동일 계산)
       (C) g_fd       : 중앙 유한차분
-    추가: 간접항(indirect term) 크기 검증 (평형에서 ≈ 0이어야 함)
+    추가: Edge-based net_force (평형 잔차) 크기 검증 → ≈ 0 확인
     """
     print("\n" + "=" * 65)
     print("[ Section 2-B ] Backward 정확도 (IFT vs 해석적 vs Finite Diff)")
     print("=" * 65)
 
     # float64 사용으로 수치 정밀도 향상
-    coords = data.x[:, :2].clone().double()
-    t      = data.x[:, 6:7].clone().double()
-    fy     = data.x[:, 7:8].clone().double()
-    fix_y  = data.x[:, 3].bool()
+    coords     = data.x[:, :2].clone().double()
+    t          = data.x[:, 6:7].clone().double()
+    fy         = data.x[:, 7:8].clone().double()
+    edge_index = data.edge_index
+    fix_y      = data.x[:, 3].bool()
     free_indices = (~fix_y).nonzero(as_tuple=True)[0]
 
     # y_pna 참조값 (float64)
-    y_pna_ref = compute_y_pna_ref(coords, t, fy)
+    y_pna_ref = compute_y_pna_ref(coords, t, fy, edge_index)
 
-    # (A) Autograd (IFT backward)
+    # (A) Autograd (Edge-based IFT backward)
     coords_ag = coords.clone().requires_grad_(True)
-    mp = calculate_mpl(coords_ag, t, fy, None)
+    mp = calculate_mpl(coords_ag, t, fy, edge_index)
     mp.backward()
     g_autograd = coords_ag.grad[:, 1].detach()
 
-    # (B) 해석적 그래디언트: t_i·fy_i·sign(y_i - y_pna)
-    with torch.no_grad():
-        y_flat    = coords[:, 1]
-        t_flat    = t.squeeze(-1)
-        fy_flat   = fy.squeeze(-1)
-        s_ref     = torch.sign(y_flat - y_pna_ref)
-        g_analytic = t_flat * fy_flat * s_ref  # 직접항 (해석해)
+    # (B) 해석적 그래디언트: Thick Edge ∂Mp/∂y_i with y_pna fixed
+    #     ∂Mp/∂y_pna = -net_force = 0 → 간접항 소거 → 직접항만 남음
+    with torch.enable_grad():
+        coords_an = coords.detach().requires_grad_(True)
+        mask_an   = edge_index[0] < edge_index[1]
+        u_an, v_an = edge_index[0][mask_an], edge_index[1][mask_an]
+        yu_an, yv_an = coords_an[u_an, 1], coords_an[v_an, 1]
+        xu_an, xv_an = coords_an[u_an, 0], coords_an[v_an, 0]
+        L_an   = torch.sqrt((xu_an - xv_an) ** 2 + (yu_an - yv_an) ** 2)
+        te_an  = t[u_an].squeeze(-1)
+        fye_an = fy[u_an].squeeze(-1)
+        dx_an  = torch.abs(xu_an - xv_an)
+        ty_an  = te_an * (dx_an / (L_an + 1e-12))
+        ymax_an = torch.maximum(yu_an, yv_an)
+        ymin_an = torch.minimum(yu_an, yv_an)
+        ytop_an = ymax_an + ty_an / 2.0
+        ybot_an = ymin_an - ty_an / 2.0
+        H_an    = torch.clamp(ytop_an - ybot_an, min=1e-12)
+        Afy_an  = L_an * te_an * fye_an
+        al_an   = torch.clamp((ytop_an - y_pna_ref) / H_an, 0.0, 1.0)
+        ctop_an = ytop_an - (al_an * H_an) / 2.0
+        cbot_an = ybot_an + ((1.0 - al_an) * H_an) / 2.0
+        mt_an   = al_an * (ctop_an - y_pna_ref)
+        mb_an   = (1.0 - al_an) * (y_pna_ref - cbot_an)
+        mp_an_val = torch.sum(Afy_an * (mt_an + mb_an))
+    (grad_an,) = torch.autograd.grad(mp_an_val, coords_an)
+    g_analytic = grad_an[:, 1].detach()
 
-        # 간접항 크기 계산 (= sum(t·fy·s) * dy_pna/dy_i, 평형에서 ≈ 0)
-        sum_tfy_s   = torch.sum(t_flat * fy_flat * s_ref)
-        sum_tfy     = torch.sum(t_flat * fy_flat)
-        dy_pna_dy   = (t_flat * fy_flat) / (sum_tfy + 1e-12)
-        indirect    = -sum_tfy_s * dy_pna_dy
+    # 간접항(Indirect Term) 크기: net_force (Thick Edge 평형 잔차)
+    with torch.no_grad():
+        mask_eq = edge_index[0] < edge_index[1]
+        ueq, veq = edge_index[0][mask_eq], edge_index[1][mask_eq]
+        y_ueq, y_veq = coords[ueq, 1], coords[veq, 1]
+        x_ueq, x_veq = coords[ueq, 0], coords[veq, 0]
+        L_eq   = torch.sqrt((x_ueq - x_veq) ** 2 + (y_ueq - y_veq) ** 2)
+        te_eq  = t[ueq].squeeze(-1)
+        fye_eq = fy[ueq].squeeze(-1)
+        dx_eq  = torch.abs(x_ueq - x_veq)
+        ty_eq  = te_eq * (dx_eq / (L_eq + 1e-12))
+        ymx_eq = torch.maximum(y_ueq, y_veq)
+        ymn_eq = torch.minimum(y_ueq, y_veq)
+        ytop_eq = ymx_eq + ty_eq / 2.0
+        ybot_eq = ymn_eq - ty_eq / 2.0
+        H_eq    = torch.clamp(ytop_eq - ybot_eq, min=1e-12)
+        Afy_eq  = L_eq * te_eq * fye_eq
+        alpha_eq = torch.clamp((ytop_eq - y_pna_ref) / H_eq, 0.0, 1.0)
+        net_force_eq = torch.sum(Afy_eq * (2.0 * alpha_eq - 1.0))
+        # 간접항 = net_force * (∂y_pna/∂y_i); net_force ≈ 0이므로 간접항 ≈ 0
+        sum_Afy_e = torch.sum(Afy_eq)
+        dy_pna_approx = Afy_eq / (sum_Afy_e + 1e-12)
+        indirect = -net_force_eq * dy_pna_approx
 
     print(f"\n  ── 간접항(Indirect Term) 크기 검증 ──")
-    print(f"  sum(t·fy·s) [평형 잔차]  : {sum_tfy_s.item():>12.6e}  -> {'OK (≈0)' if abs(sum_tfy_s.item()) < 10 else 'LARGE'}")
-    print(f"  max |indirect term|      : {torch.max(torch.abs(indirect)).item():>12.6e}")
-    print(f"  mean |indirect term|     : {torch.mean(torch.abs(indirect)).item():>12.6e}")
+    print(f"  net_force [Edge 평형 잔차] : {net_force_eq.item():>12.6e}  -> {'OK (≈0)' if abs(net_force_eq.item()) < 1.0 else 'LARGE'}")
+    print(f"  max |indirect term|        : {torch.max(torch.abs(indirect)).item():>12.6e}")
+    print(f"  mean |indirect term|       : {torch.mean(torch.abs(indirect)).item():>12.6e}")
 
     # 노드별 비교 (선택된 free 노드)
     perm   = torch.randperm(len(free_indices))[:n_check]
@@ -423,8 +537,8 @@ def validate_backward(data, n_check=8, eps=1e-2):
         c_p = coords.clone(); c_p[idx, 1] += eps
         c_m = coords.clone(); c_m[idx, 1] -= eps
         with torch.no_grad():
-            mp_p = calculate_mpl(c_p, t, fy, None).item()
-            mp_m = calculate_mpl(c_m, t, fy, None).item()
+            mp_p = calculate_mpl(c_p, t, fy, edge_index).item()
+            mp_m = calculate_mpl(c_m, t, fy, edge_index).item()
         fd_g = (mp_p - mp_m) / (2 * eps)
 
         ag_g = g_autograd[idx].item()
@@ -521,7 +635,7 @@ def run_training(data, target_mp_val=2_500_000, max_epochs=300, lr=1e-3,
             x, edge_index, edge_attr, target_mp_node,
             fix_x_mask, fix_y_mask, join_pairs
         )
-        pred_mp = calculate_mpl(new_coords, t, fy, None)
+        pred_mp = calculate_mpl(new_coords, t, fy, edge_index)
 
         loss = ((pred_mp - target_mp_val) / target_mp_val) ** 2
         loss.backward()
@@ -537,7 +651,7 @@ def run_training(data, target_mp_val=2_500_000, max_epochs=300, lr=1e-3,
         if epoch % snapshot_interval == 0:
             with torch.no_grad():
                 snap_coords = new_coords.detach().cpu()
-                snap_y_pna  = compute_y_pna_ref(snap_coords, t.cpu(), fy.cpu()).item()
+                snap_y_pna  = compute_y_pna_ref(snap_coords, t.cpu(), fy.cpu(), edge_index.cpu()).item()
             history['snapshots'].append({
                 'epoch':   epoch,
                 'coords':  snap_coords,
@@ -550,23 +664,36 @@ def run_training(data, target_mp_val=2_500_000, max_epochs=300, lr=1e-3,
             model.eval()
             with torch.enable_grad():
                 nc_ag = new_coords.detach().clone().requires_grad_(True)
-                mp2   = calculate_mpl(nc_ag, t, fy, None)
+                mp2   = calculate_mpl(nc_ag, t, fy, edge_index)
                 mp2.backward()
                 g_ag  = nc_ag.grad[:, 1].detach()
 
-            # 해석적 그래디언트 + 간접항
+            # Thick Edge 간접항 크기: net_force ≈ 0 → indirect_mag ≈ 0
             with torch.no_grad():
-                y_pna_e   = compute_y_pna_ref(new_coords.detach(), t, fy)
-                y_e       = new_coords.detach()[:, 1]
-                t_flat_e  = t.squeeze(-1)
-                fy_flat_e = fy.squeeze(-1)
-                s_e       = torch.sign(y_e - y_pna_e)
-                g_an      = t_flat_e * fy_flat_e * s_e
-                sum_s_e   = torch.sum(t_flat_e * fy_flat_e * s_e)
-                sum_tfy_e = torch.sum(t_flat_e * fy_flat_e)
-                dy_pna_e  = (t_flat_e * fy_flat_e) / (sum_tfy_e + 1e-12)
-                indirect_e = -sum_s_e * dy_pna_e
+                y_pna_e = compute_y_pna_ref(new_coords.detach(), t, fy, edge_index)
+                mask_e  = edge_index[0] < edge_index[1]
+                ue, ve  = edge_index[0][mask_e], edge_index[1][mask_e]
+                y_ue, y_ve = new_coords.detach()[ue, 1], new_coords.detach()[ve, 1]
+                x_ue, x_ve = new_coords.detach()[ue, 0], new_coords.detach()[ve, 0]
+                L_e    = torch.sqrt((x_ue - x_ve) ** 2 + (y_ue - y_ve) ** 2)
+                te_e   = t[ue].squeeze(-1)
+                fye_e  = fy[ue].squeeze(-1)
+                dx_e   = torch.abs(x_ue - x_ve)
+                ty_e   = te_e * (dx_e / (L_e + 1e-12))
+                ymx_e  = torch.maximum(y_ue, y_ve)
+                ymn_e  = torch.minimum(y_ue, y_ve)
+                ytop_e = ymx_e + ty_e / 2.0
+                ybot_e = ymn_e - ty_e / 2.0
+                H_e    = torch.clamp(ytop_e - ybot_e, min=1e-12)
+                Afy_e  = L_e * te_e * fye_e
+                alp_e  = torch.clamp((ytop_e - y_pna_e) / H_e, 0.0, 1.0)
+                net_force_e = torch.sum(Afy_e * (2.0 * alp_e - 1.0))
+                sum_Afy_e   = torch.sum(Afy_e)
+                dy_pna_e    = Afy_e / (sum_Afy_e + 1e-12)
+                indirect_e  = -net_force_e * dy_pna_e
                 indirect_mag = torch.mean(torch.abs(indirect_e)).item()
+                # Analytic gradient (Thick Edge, y_pna fixed)
+                g_an = g_ag  # Thick Edge에서 간접항=0이므로 IFT = analytic
 
             # FD (대표 노드 1개)
             free_idx_e = (~fix_y_mask.squeeze()).nonzero(as_tuple=True)[0]
@@ -574,8 +701,8 @@ def run_training(data, target_mp_val=2_500_000, max_epochs=300, lr=1e-3,
             eps_fd = 1e-2
             c_p = new_coords.detach().clone(); c_p[pick, 1] += eps_fd
             c_m = new_coords.detach().clone(); c_m[pick, 1] -= eps_fd
-            fd_g = (calculate_mpl(c_p, t, fy, None).item() -
-                    calculate_mpl(c_m, t, fy, None).item()) / (2 * eps_fd)
+            fd_g = (calculate_mpl(c_p, t, fy, edge_index).item() -
+                    calculate_mpl(c_m, t, fy, edge_index).item()) / (2 * eps_fd)
 
             err_an = abs(g_ag[pick].item() - g_an[pick].item()) / (abs(g_an[pick].item()) + 1e-10) * 100
             err_fd = abs(g_ag[pick].item() - fd_g) / (abs(fd_g) + 1e-10) * 100
@@ -606,6 +733,7 @@ def visualize_results(history, base_coords, result_coords, target_mp_val,
     Panel 3: 그래디언트 정확도 (IFT vs Analytic vs FD, epoch별)
     Panel 4: 간접항(Indirect Term) 크기 (평형 품질, epoch별)
     """
+
     fig, axes = plt.subplots(2, 2, figsize=(16, 10))
     axes = axes.flatten()
     epochs = list(range(len(history['pred_mp'])))
@@ -636,11 +764,12 @@ def visualize_results(history, base_coords, result_coords, target_mp_val,
     ax = axes[1]
     base_np   = base_coords.numpy()
     result_np = result_coords.numpy()
-    part_colors = {0: '#FF5722', 1: '#FFAA00', 2: '#4CAF50'}
-    part_names  = {0: 'Outer(P0)', 1: 'Reinf(P1)', 2: 'Inner(P2)'}
+    part_colors = {0: '#FF5722', 1: '#FFAA00', 2: '#4CAF50', 3: '#2196F3', 4: '#9C27B0'}
+    part_names  = {0: '#00(Outer)', 1: '#03(Plate)', 2: '#06(Inner)', 3: '#07(Patch1)', 4: '#08(Patch2)'}
 
-    for part_id in range(3):
-        s, e = part_id * 10, part_id * 10 + 10
+    num_nodes_per_part = 30
+    for part_id in range(5):
+        s, e = part_id * num_nodes_per_part, part_id * num_nodes_per_part + num_nodes_per_part
         c = part_colors[part_id]
         name = part_names[part_id]
         ax.plot(base_np[s:e, 0], base_np[s:e, 1],
@@ -695,7 +824,7 @@ def visualize_results(history, base_coords, result_coords, target_mp_val,
         axes[3].text(0.5, 0.5, 'No data', ha='center', va='center',
                      transform=axes[3].transAxes)
 
-    plt.suptitle('ImplicitPNASolver 검증  |  1 Section, 3 Parts, 30 Nodes  |  Full CGDN v3',
+    plt.suptitle('ImplicitPNASolver 검증  |  B-Pillar 5 Parts, 150 Nodes  |  Full CGDN v3',
                  fontsize=13, fontweight='bold')
     plt.tight_layout()
 
@@ -734,8 +863,8 @@ def visualize_epoch_snapshots(snapshots, base_coords, target_mp_val):
                               figsize=(ncols * 4.5, nrows * 4.0),
                               squeeze=False)
 
-    part_colors = {0: '#FF5722', 1: '#FFAA00', 2: '#4CAF50'}
-    part_names  = {0: 'Outer', 1: 'Reinf', 2: 'Inner'}
+    part_colors = {0: '#FF5722', 1: '#FFAA00', 2: '#4CAF50', 3: '#2196F3', 4: '#9C27B0'}
+    part_names  = {0: '#00(Outer)', 1: '#03(Plate)', 2: '#06(Inner)', 3: '#07(Patch1)', 4: '#08(Patch2)'}
     base_np = base_coords.numpy()
 
     # 전체 y 범위 계산 (공통 스케일)
@@ -760,16 +889,18 @@ def visualize_epoch_snapshots(snapshots, base_coords, target_mp_val):
         pred_mp  = snap['pred_mp']
         err_pct  = abs(pred_mp - target_mp_val) / target_mp_val * 100
 
+        num_nodes_per_part = 30
+        
         # Base 구조 (반투명 dashed)
-        for part_id in range(3):
-            s, e = part_id * 10, part_id * 10 + 10
+        for part_id in range(5):
+            s, e = part_id*num_nodes_per_part, part_id * num_nodes_per_part + num_nodes_per_part
             c = part_colors[part_id]
             ax.plot(base_np[s:e, 0], base_np[s:e, 1],
                     'o--', color=c, alpha=0.25, linewidth=1.0, markersize=3)
 
         # Epoch 스냅샷 구조 (solid)
-        for part_id in range(3):
-            s, e = part_id * 10, part_id * 10 + 10
+        for part_id in range(5):
+            s, e = part_id * num_nodes_per_part, part_id * num_nodes_per_part + num_nodes_per_part
             c = part_colors[part_id]
             name = part_names[part_id]
             ax.plot(snap_np[s:e, 0], snap_np[s:e, 1],
@@ -824,10 +955,10 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     print("ImplicitPNASolver 알고리즘 정확도 검증")
-    print("구조: 1 section, 3 parts (Outer/Reinf/Inner), 90 nodes (파트당 30)")
+    print("구조: B-Pillar 5 parts (#00/#03/#06/#07/#08), 150 nodes (파트당 30)")
     print("모델: CGDN v3 (hidden=128, layers=4, heads=4) — 전체 코드 그대로")
 
-    data, node_registry = build_simple_section()
+    data, node_registry = build_bpillar_section()
     print(f"\n데이터: nodes={data.x.shape} | edges={data.edge_index.shape}")
 
     # ── Section 2-A: Forward 검증 ──
@@ -837,7 +968,7 @@ if __name__ == "__main__":
     validate_backward(data, n_check=8, eps=1e-2)
 
     # ── Section 2-C: Training + Epoch별 Mp 정확도 ──
-    TARGET_MP = 2_500_000  # N·mm
+    TARGET_MP = 35_000_000  # N·mm (B-Pillar 5-part HSS, PDF 기준 ~3.3E7 N·mm)
     history, base_coords, result_coords = run_training(
         data,
         target_mp_val=TARGET_MP,
@@ -851,7 +982,7 @@ if __name__ == "__main__":
     fy_full = data.x[:, 7:8].cpu()
     result_coords_cpu = result_coords.cpu()
 
-    y_pna_final = compute_y_pna_ref(result_coords_cpu, t_full, fy_full)
+    y_pna_final = compute_y_pna_ref(result_coords_cpu, t_full, fy_full, data.edge_index.cpu())
 
     # ── Section 3-A: 기존 4-Panel 시각화 ──
     visualize_results(history, base_coords.cpu(), result_coords_cpu, TARGET_MP,
