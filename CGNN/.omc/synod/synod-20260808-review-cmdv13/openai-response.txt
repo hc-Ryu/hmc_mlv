@@ -1,0 +1,76 @@
+다음 평가는 두 가지 관점으로 나누어 기술한다.  
+① command_v1_3.md 가 idea_v4.md 를 얼마나 충실히 따르는가?  
+② 실제로 패치했을 때 실행-오류(런타임)와 목적 실패(학습 성과 불량)를 일으킬 위험 요소는 무엇인가?
+
+──────────────────────────────────
+1. idea_v4 대비 충실도 ‑- 누락·과잉·일탈
+──────────────────────────────────
+• A/B/C/D 항목  
+  – W_SPARSE 0→0, ALPHA_ENT 0.05, T_MIN/T_MAX 0.7/2.3, BINARIZE_THRESHOLD 0.3 : 모두 반영 👍.  
+  – 단, idea_v4 에서 “T_MIN/T_MAX 만으로 충분할 수도 있다”는 보수적 입장은 삭제, 대신 Sec 3 의 FRAC_CLAMP·DELTA_SCALE 재설계가 추가되어 “두 파라미터만으로는 불충분”이라는 강한 가정으로 전환됨(과잉·일탈).  
+
+• E 항목(4-stage training, part-run thickness 풀링)  
+  – Stage4 자체는 도입했으나 ENABLE_STAGE4 기본값을 False 로 두어 사실상 idea_v4 권고를 비활성화.  
+  – “continuous-part thickness pooling을 (part_id,run) 로 세분”은 구현 안 됨(누락).  
+
+• 추가사항 (idea_v4에 없던 내용)  
+  – FRAC_CLAMP_LO/HI, DELTA_SCALE_V13=10, reachability assert 등 : 전면적 새 로직.  
+  – 옵티마이저 재구성(AdamW 그룹명 재조정) : idea_v4 언급 없음.  
+
+즉, 핵심 가중치 조정은 충실하나, Stage4·풀링은 부분 혹은 미구현, 그리고 두꺼운 Sec 3 변경은 idea_v4 범위를 넘어선다.
+
+──────────────────────────────────
+2. 실제 적용 시 실패·버그 시나리오
+──────────────────────────────────
+아래는 심각도(Severity)와 함께 정리하였다.
+
+S1-CRITICAL: 즉시 런타임 오류
+--------------------------------
+1. NameError (const 위치)  
+   • CGDN17 클래스 정의 시 self.DELTA_SCALE 과 self.T_MIN, self.T_MAX 는 이미 평가됨.  
+   • command_v1_3.md 는 새로운 상수를 ASWC_STAGE1_END(≈L907) “아래”에 선언 → 클래스 정의(≈L135) 시점에 존재하지 않아 NameError 또는 기존 값 유지로 인한 “무효 패치”.  
+   • 해결: 상수는 클래스 정의 ‘위’ 또는 class attribute 덮어쓰기 필요.
+
+2. 옵티마이저 그룹 변수 미존재  
+   • 코드 사실 5: coord_params, thickness_params 는 정의되지 않음.  
+   • Stage4 rebuild 예시는 즉시 NameError 로 중단.
+
+3. assert_thickness_reachability()  
+   • Sec 3.4 로직은 thickness_gate(시그모이드) 곱을 무시. epoch<128 시 해당 게이트≈0 → assert 실패로 abort.
+
+S2-HIGH: 학습 논리 실패(목표 불달성)
+-----------------------------------
+4. “질량 감소” 구동력 부재  
+   • Code fact 9: l_mass 는 area>target 시만 작동. target_area 는 초기 면적.  
+   • W_SPARSE 0으로 만들면, 질량을 ‘늘리지 마라’는 제약만 남고 ‘줄여라’는 그라디언트가 사라짐.  
+   • idea_v4 는 “이미 질량 목표 함수가 있다”는 전제였는데, 부호(한-쪽) 문제를 간과. 최소한 대칭( |area/target−1| ) 또는 ‘아래로도’ 패널티가 필요.
+
+5. FRAC_CLAMP/DELTA_SCALE 과 l_sat 충돌  
+   • DELTA_SCALE 10 → l_sat knee 9.0. Thick-range 끝을 만지려면 l_sat 제곱 패널티에 즉시 걸려, 실제로는 네트워크가 끝값(0.7/2.3)에 거의 도달 불가. 기존보다 오히려 유효 범위가 좁아질 가능성 존재.  
+
+6. BINARIZE_THRESHOLD 0.3 변경  
+   • z_gate>0.3 이면 ‘존재’로 판정. 그러나 pruning 절차(0.08↓)는 그대로라서 0.08~0.3 영역은 “유령 부품”이 된다. mass 에는 포함(삭제 안 됨) but exists_cand False → 목표 Mp 계산 누락. section Mp 부족이 악화될 수 있음.
+
+S3-MEDIUM: 논리 틈, 관측 누락
+--------------------------------
+7. Stage2 detach (epoch≥400)  
+   • thickness_grad 가 더 강해져도 400epoch 이후엔 dx/dt=0. Stage4 OFF 면 후반 학습 대부분이 coordinate-only. 목표 달성 어려움.
+
+8. leaky_tanh 선형 누수  
+   • DELTA_SCALE*1.05 이상도 가능, reachability assert는 tanh 한계값만 가정 → 이론-실제 불일치 경고 필요.
+
+9. 무-가중치 sparsity (실험 design)  
+   • W_SPARSE 0 으로 binarization 압력의 50%를 ALPHA_ENT 에 떠넘김. 그러나 entropy 항은 sigmoid gate_multiplier 로 시간의존 축소됨(초기엔 매우 약함). 삭제가 충분히 일어나지 않을 수 있음.
+
+10. death-zone 진단표  
+    • 진단만 출력, 게이트 복구 또는 재벌점 로직 없음. 오류 확인 후 수동 개입 필요.
+
+──────────────────────────────────
+3. 결과적 전망
+──────────────────────────────────
+• 런타임은 S1 문제로 첫 epoch 이전에 멈출 가능성이 높다.  
+• 패치가 모두 통과해도, l_mass 부호·sparse-entropy 힘 불균형 때문에 “초기 질량 이하 유지 + 모든 Mp 달성 + binarized 일관성” 3목표 동시 충족 확률은 낮음.  
+• idea_v4 가 가정했던 “mass term은 이미 양방향”이라는 착오를 바로잡지 않으면 ‘mass paradox’가 반복될 것이다.  
+
+──────────────────────────────────
+(답변 끝)

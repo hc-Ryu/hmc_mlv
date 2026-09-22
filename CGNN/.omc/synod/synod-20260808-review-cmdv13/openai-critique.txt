@@ -1,0 +1,38 @@
+Counter-Examples Found
+1. 상수 블록 위치 오류 재확인  
+   ‑ 사실 1 그대로: v1_3 새 상수들은 class CGDN17 정의 이후(약 770줄 뒤)에 추가된다. 클래스 본문 안에서 self.T_MIN 등의 참조가 일어나므로 import 시점에 NameError. command_v1_3가 전혀 수정하지 않았다.  
+   → 실행 즉시 터짐.  
+2. Stage-4 옵티마이저 그룹 이름 미일치  
+   ‑ 사실 5: ‘coord_params’, ‘thickness_params’ 변수는 존재하지 않는다. Stage-4를 ENABLE 할 경우 KeyError. ENABLE_STAGE4가 기본 False 라지만, 문서 “+200 epochs 재수렴” 요구와 모순.  
+3. 두께 가용 구간 검사(assert_thickness_reachability) 오탐 가능  
+   ‑ 두께 gate(sigmoid(0.6( ep-128 )))가 0.01-0.99 범위를 곱하므로, 초반(epoch<50)에 δ_t_part≈0으로 수렴 → reachability assert에서 “모든 part가 ±Δ에 도달” 조건을 만족하지 못해 초기화 중단 위험.  
+4. l_sat 무력화로 인한 과대 Δ_t  
+   ‑ Δ_SCALE=10이면 |δ|가 10이 되는 구간까진 w_sat·relu(…)=0.01·1=0.01 이라 제약이 사실상 없다. tanh leak(0.05x/3)로 |δ|≫10도 가능 → 물리적으로 불가능한 극소 두께(≈0) 혹은 극대 두께(>3 mm)로 튈 여지.  
+
+Logical Flaws Detected
+1. Contentions-1(“mass paradox 악화”) 재평가  
+   ‑ 정정된 Fact 9에 따라 실제 목적함수에는 f=area/target_area가 항상 포함된다. ∂f/∂z_k≈A_k/target_area. 예시 A_k≈200 mm² ⇒ 0.0083.  
+   ‑ l_sparse 제거 전:  w_sparse_effective≈0.0147·gate_mult(≤1).  
+   ‑ 결론: W_SPARSE 제거 후에도 하강 압력은 0이 아니라 55~100% 수준으로 남는다. 따라서 “더 악화” 일반화는 유지 불가. 상황은 ‘부분 면적이 아주 작을 때’만 압력이 약해져 후보 패치가 살 가능성이 높아짐(역으로 mass up 위험 감소).  
+2. Contentions-2( l_sat vs DELTA_SCALE 충돌 )  
+   ‑ w_sat = 0.01 이고 |δ|=10 에서 항값은 0.01. 동시에 f≈1, augmented Mp 항은 ≥O(1). 그러므로 학습 동역학에 거의 영향 없음. “자기 모순”은 미미.  
+3. Contentions-3( pass criterion )  
+   ‑ 최적화 목표는 area↓ subject to Mp. command_v1_3 Sec-7 “area ≤ 24 056.9” 는 단순 ‘원래보다 커지지 마’ 규칙이라 논리적으로 합당.  
+   ‑ 그러나 Aug-Lag 파라미터 τ, ρ, gate_multiplier 가 고정되어 있어 Mp 완전 만족이 어려우면 area 감소는 오히려 강해진 패널티에 눌려 포기될 수 있다. pass criterion 충족가능성은 불확실하지만 논리 모순은 아님.  
+
+Alternative Interpretations
+1. 스프링 같지 않은 가중치 스케일  
+   ‑ f 항 계수 1.0 은 g_Mp 항 계수 (ρ_Mp/2) 및 gate_multiplier(≥0.05) 와 비교될 때 지나치게 작아 전체가 Mp feasible 영역 밖에선 사실상 ‘면적은 뒷전’. 패치가 삭제된 뒤 연속부 두께를 늘려 area 증가 → Mp 달성 → f 재활성 → 요동. mass paradox 원인은 W_SPARSE 존재 여부보다 ρ_Mp 스케일링 미세조정 문제일 수도.  
+2. Δ_SCALE=10 확대는 두께 grads×7 배 가속이라며 학습 안정성을 해칠 수 있다. optimizer lr는 줄이지 않았으므로 폭주 위험.  
+
+Answers to Contentions 1-3
+1. “mass paradox 악화” 주장은 취소/수정. W_SPARSE=0 이어도 면적 하강 그래디언트가 존재하므로 필연적 악화는 아니다. 단, 작은 패치에 대한 압력이 줄어 ‘살아남을 확률’은 증가.  
+2. l_sat 대 Δ_SCALE 충돌은 수치적으로 미미(≤1% scale), 따라서 실질적 문제 아님.  
+3. pass criterion ‘area ≤ baseline’은 논리적으론 맞으나, Mp constraint가 빡빡해 실패할 가능성 존재. 필요시 “≤baseline + ε” 여유를 검토해야 함.  
+
+<confidence score="73"><evidence>fact 9 source 코드, usv18.compute_alda_loss 정의, w_sparse 및 f gradient 계산, 코드 facts 1·2·4·5·8 활용</evidence><logic>수정된 목적함수 분석으로 그래디언트 크기 비교, 패널티 항 상대크기 추정, 런타임 오류 위치 확인</logic><expertise>구조최적·PyTorch 경험, 증분형립 논증</expertise><can_exit>false</can_exit></confidence>
+<semantic_focus>
+1. Fact 9 정정 후 W_SPARSE 제거 효과는 ‘악화’가 아니라 ‘부분 패치 보존 쪽으로 기울어짐’ 수준이다.  
+2. l_sat-Δ_SCALE 스케일 충돌은 w_sat가 작아 영향 무시 가능.  
+3. 코드상 NameError·KeyError 등이 여전히 미해결이라 command_v1_3 실행 자체가 불가하다.  
+</semantic_focus>

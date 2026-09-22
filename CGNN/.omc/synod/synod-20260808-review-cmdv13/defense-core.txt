@@ -1,0 +1,25 @@
+## THE SINGLE REMAINING CONTENTION (Synod Court, round 3)
+
+Both critics withdrew the "mass paradox worsens" claim. One live claim remains, raised by the Explorer:
+
+> "The coefficient on f = area/target_area is 1.0, while the Mp constraint term is (rho_Mp/2)*relu(g_Mp + mu_Mp/rho_Mp)^2. Whenever the design is Mp-infeasible, the Mp term dominates so completely that area is effectively ignored. The mass paradox may therefore be caused by the rho_Mp scaling, NOT by W_SPARSE. If so, command_v1_3.md fixes the wrong knob and the +10.1% area growth will recur even after every change in the document is applied correctly."
+
+## NEWLY VERIFIED NUMBERS (orchestrator; treat as ground truth)
+- make_alda_state(): mu_Mp = 1.0, rho_Mp = 200.0 (rho_min 200, rho_max 2000, max_mu 1e5, update_every 10), tau_Mp = 0.01, tau_col = 0.02.
+- L_alda = f + term_Mp + term_col, and in train_step_multi: L_alda_effective = L_alda * max(thickness_gate, 0.05). thickness_gate = sigmoid(0.6*(epoch-128)), so ~1.0 after epoch ~150.
+- g_Mp = |pred_mp_total - target_mp_total| / |target_mp_total| - 0.01, i.e. a TOTAL (summed over all 17 sections) relative Mp error with a 1% dead band.
+- term_Mp = 100 * relu(g_Mp + mu_Mp/rho_Mp)^2 = 100 * relu(g_Mp + 0.005)^2 at initial mu/rho.
+- SEPARATELY, contrib_phys = w_phys * l_phys_total * s_phys with w_phys = 10.0, where l_phys_total is the MEAN over the 17 sections of asymmetric_huber_phys(pred_mp_section, target_mp_section). This is a PER-SECTION Mp term, distinct from the ALDA total-Mp term.
+- IMPORTANT NEW FACT: `l_mass` (the one-sided relu term) is COMPUTED AND LOGGED BUT NEVER ADDED TO `loss`. The total is:
+  loss = contrib_phys + contrib_smooth + L_alda_effective + contrib_order + contrib_anchor + contrib_sat + contrib_sparse + contrib_entropy + contrib_continuity
+  So the ONLY mass term in the entire objective is the linear f inside L_alda, with effective coefficient max(gate,0.05) ~ 1.0.
+- mu_Mp is dual-ascended every 10 epochs up to max_mu = 1e5, so term_Mp's effective linear coefficient rho_Mp*(g + mu/rho) = rho_Mp*g + mu_Mp GROWS without bound while f's coefficient stays pinned at 1.0.
+
+## YOUR TASK
+Argue the contention with numbers, then answer decisively:
+(a) Is the rho_Mp / mu_Mp vs f=1.0 imbalance a real mechanism that would reproduce the +10.1% area growth even with W_SPARSE=0, ALPHA_ENT=0.05, T_MIN/T_MAX=0.7/2.3 and DELTA_SCALE=10.0 all applied correctly?
+(b) If yes, what MINIMAL additional change to command_v1_3.md would fix it? Be specific and prefer the smallest intervention.
+(c) Does DELTA_SCALE=10.0 (thickness can now reach 2.3 everywhere, previously Outer Hat was frozen and others confined to ~58% of the range) make this imbalance BETTER or WORSE? Note that giving the optimizer far more thickness headroom, while area is only weakly penalized, is the exact recipe for the observed pathology.
+(d) Overall verdict: with command_v1_3.md implemented correctly (runtime blockers fixed), will the shape-optimization goal be met? Answer GO / CONDITIONAL GO / NO GO and state the condition.
+
+Respond in KOREAN. Be quantitative. Do not simply agree with the other side.

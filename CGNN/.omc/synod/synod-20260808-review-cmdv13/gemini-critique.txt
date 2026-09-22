@@ -1,0 +1,51 @@
+## Validated Claims (검증된 주장)
+
+1. **치명적인 런타임 블로커 (Runtime Blockers) 존재**:
+   - **NameError (상수 정의 위치 오류)**: `command_v1_3.md`는 새로운 상수 블록(`T_MIN_V13`, `DELTA_SCALE_V13` 등)을 `ASWC_STAGE1_END = 100` 바로 아래(907라인 부근)에 배치하라고 지시합니다. 그러나 `CGDN17` 클래스는 135라인에서 정의되며, 임포트 시점에 이 클래스 속성들이 참조되므로 즉시 `NameError`가 발생합니다 (코드 팩트 1).
+   - **Stage 4 변수명 미정의 오류**: optimizer 재구축 시 사용된 `coord_params` 및 `thickness_params`는 실제 코드에 존재하지 않는 변수명입니다 (코드 팩트 5). 실제로는 `main_params`, `thick_params`, `gate_params`가 사용되고 있으며, 이로 인해 Stage 4 실행 시 즉시 크래시가 발생합니다.
+
+2. **두께 도달 가능성 검증 식의 한계**:
+   - `CGDN17.forward()`에서 `thickness_gate`는 에포크에 따라 동적으로 변화하는 값(`sigmoid(0.6*(epoch-128))`)입니다 (코드 팩트 2). Sec 3.4의 `assert_thickness_reachability()`는 이 동적 멀티플라이어를 고려하지 않고 정적 범위만 체크하므로, 에포크 초기에 오작동할 여지가 있습니다.
+
+---
+
+## Withdrawn or Disputed Claims (철회 및 논쟁 중인 주장)
+
+1. **"W_SPARSE = 0 일 때 질량 감소 압력이 완전히 사라진다"는 주장 (철회)**:
+   - **수정된 팩트 9에 따른 재평가**: `l_mass`는 일방향(one-sided) ReLU 규제이지만, **ALDA 손실 함수(`compute_alda_loss`) 내의 $f = \text{area}/\text{target\_area}$ 항은 제약 조건 없이 항상 활성화되는 선형 목적 함수**입니다.
+   - 따라서 `W_SPARSE = 0`이 되더라도 게이트 $z_k$에 대한 물리적 면적 기반의 하향 압력($d(f)/d(z_k) = A_k / \text{target\_area}$)은 완벽히 유지됩니다. "질량 역설이 하향 그래디언트 소멸로 인해 더 악화된다"는 이전 라운드의 결론은 **오류로 판명되어 철회**합니다. 오히려 `l_sparse` 제거는 물리적 크기($A_k$)에 비례하는 합리적인 질량 최적화를 가능하게 합니다.
+
+---
+
+## Missing Considerations (누락된 고려사항)
+
+1. **Stage 2 분리(Detach) 메커니즘과 Stage 4의 충돌**:
+   - 코드 팩트 8에 따르면, 400 에포크 이후에는 연속 부재의 두께(`t_final`)가 `.detach()`되어 그래디언트 흐름이 차단됩니다. 만약 `ENABLE_STAGE4 = True`로 설정하고 500 에포크 이후에 Stage 4를 실행하더라도, 이미 고정(detach)된 두께 파라미터는 업데이트되지 않는 논리적 모순이 발생합니다.
+
+2. **W_SPARSE 제거 시 게이트 수렴 속도 저하**:
+   - `W_SPARSE`를 0으로 만들면 하향 압력이 순수 물리 면적 그래디언트로 대체되는데, 이는 기존 `l_sparse` 효과에 비해 크기가 작아 게이트가 0 또는 1로 완전히 수렴하는 데 훨씬 더 많은 에포크가 필요할 수 있습니다. `ALPHA_ENT`를 0.05로 올린 것만으로 이 수렴 속도 저하를 완전히 상쇄할 수 있는지에 대한 정량적 검증이 빠져 있습니다.
+
+---
+
+## Answers to Contentions 1-3 (논쟁점 답변)
+
+### 1. 질량 역설(Mass Paradox) 결론의 생존 여부
+* **답변**: **"W_SPARSE=0으로 인해 질량 역설이 악화된다"는 결론은 철회되어야 합니다.**
+* **근거**: 실제 물리적 면적 그래디언트 $d(f)/d(z_k) \approx 0.0083$이 ALDA 선형 항을 통해 계속 공급되므로 하향 압력은 살아있습니다. 오히려 기존의 `l_sparse`는 물리적 기여도(부재 크기)를 무시하고 일률적인 페널티를 주어 작은 패치를 비정상적으로 조기 도태시켰습니다. `W_SPARSE=0` 하에서 물리적 면적 감소 압력이 정상 작동하므로 질량 역설을 해결할 수 있는 올바른 기반이 마련되었습니다.
+
+### 2. $l_{sat}$ (Knee = 9.0) vs DELTA_SCALE = 10.0 충돌의 실질적 영향
+* **답변**: **실질적인 영향은 극히 미미(Immaterial)합니다.**
+* **근거**: $|\delta|=10.0$에 도달했을 때의 포화 페널티는 $0.01 \times (10 - 9)^2 = 0.01$ 수준입니다. 이는 물리 손실(기본 스케일 $\sim 1.0$, 가중치 $w_{phys} = 10.0$)에 비해 $1/1000$ 이하로 작기 때문에, 두께가 도달 범위 경계인 $[0.7, 2.3]$ 근처로 이동하는 것을 방해하지 못합니다. 따라서 이 충돌은 설계를 방해하는 병목이 아닙니다.
+
+### 3. 고정된 target_area 하에서 Sec 7의 통과 기준 및 최적화 달성 가능성
+* **답변**: **현재 설계로 달성 가능하지만, 극도로 타이트한 경계 조건입니다.**
+* **근거**: $f = \text{area}/\text{target\_area}$가 목적 함수이므로, 알고리즘은 Mp 제약 조건을 만족하는 범위 내에서 면적을 baseline 이하로 줄이려고 시도합니다. 다만, 단일 글로벌 두께 변수를 공유하는 연속 부재들의 특성상, 특정 섹션(예: Sec 13)의 Mp 초과를 해결하기 위해 두께를 키우면 다른 모든 섹션의 면적도 함께 증가하여 전체 면적이 baseline(24,056.9)을 초과하는 질량 역설이 발생하기 쉽습니다. 따라서 패치 삭제와 연속 부재의 미세 두께 조정이 정밀하게 균형을 이루어야만 통과 기준을 만족할 수 있습니다.
+
+---
+
+<confidence score="95"><evidence>코드 팩트 1, 5를 통해 NameError 및 정의되지 않은 변수 참조로 인한 런타임 에러를 확실히 검증하였고, 수정한 팩트 9를 바탕으로 ALDA 선형 목적 함수의 도함수를 유도하여 질량 그래디언트가 생존함을 수학적으로 증명했습니다.</evidence><logic>수정된 팩트 9의 선형 면적 항 f가 항상 활성화되어 하향 그래디언트를 제공하므로, 기존의 '하향 그래디언트 소멸' 주장은 논리적으로 거짓이 됩니다. $l_{sat}$의 손실 기여도 역시 정량적으로 계산하여 영향이 미미함을 증명했습니다.</logic><expertise>Augmented Lagrangian 최적화 메커니즘과 PyTorch 파라미터 업데이트 흐름, 그리고 변수 스코프에 대한 정확한 분석을 제공했습니다.</expertise><can_exit>true</can_exit></confidence>
+<semantic_focus>
+1. Corrected physical mass gradient via ALDA linear term f.
+2. Resolution of NameError and undefined variables in Stage 4.
+3. Immateriality of l_sat saturation penalty at DELTA_SCALE=10.0.
+</semantic_focus>

@@ -1,0 +1,38 @@
+## CORRECTION TO CODE FACT 9 (issued by the orchestrator after reading more source). Both of you built a major conclusion on the uncorrected version. Re-evaluate.
+
+I earlier told you: "l_mass = relu(area/target_area - 1)^2 is one-sided, so with W_SPARSE=0 there is NO downward pressure on area." That was INCOMPLETE and the conclusion drawn from it is WRONG. Full source:
+
+    def compute_mass_loss(...):
+        area = torch.sum(seg_len * t_src)
+        l_mass = torch.relu(area / (target_area + 1e-12) - 1.0) ** 2
+        return area, l_mass
+
+    def compute_alda_loss(area, target_area, pred_mp_total, target_mp_total, l_collision, alda_state):
+        f = area / (target_area + 1e-12)                       # <-- LINEAR, always active, no relu
+        g_Mp  = |pred_mp_total - target_mp_total|/|target_mp_total| - tau_Mp
+        g_col = l_collision - tau_col
+        term_Mp  = (rho_Mp /2) * relu(g_Mp  + mu_Mp /rho_Mp )**2
+        term_col = (rho_col/2) * relu(g_col + mu_col/rho_col)**2
+        L_alda = f + term_Mp + term_col
+        return L_alda, ...
+
+and in train_step_multi():
+    area, l_mass = usv18.compute_mass_loss(new_coords, t_final, edge_index, edge_attr, target_area)
+    L_alda, g_Mp_val, g_col_val = usv18.compute_alda_loss(area, target_area, pred_mp_total, target_mp_total, l_collision, alda_state)
+    L_alda_effective = L_alda * max(gate, 0.05)
+
+So the ACTUAL objective is an Augmented Lagrangian: MINIMIZE f = area/target_area (unconditional linear descent pressure on area, coefficient 1.0, gated only by max(gate,0.05)) SUBJECT TO the Mp constraint via the augmented term. l_mass (the one-sided relu) is a separate, additional barrier. Therefore:
+- Downward mass pressure DOES survive W_SPARSE=0. It is d(f)/d(z_k) = A_k / target_area.
+- Rough magnitudes: a small patch of area ~200 mm2 gives d f/d z_k ~ 200/24057 ~ 0.0083. The old flat sparsity gradient was w_sparse_effective * d(mean)/d(z_k) = 0.5*gate_mult/(17*n_cand) ~ 0.0147*gate_mult per gate. So l_sparse was indeed comparable to or LARGER than the true physical area gradient for small patches, which is exactly idea_v4 proposal A's argument -- and it now stands on correct ground.
+
+## PRIOR ROUND (Solver) SUMMARY
+| Agent | Conf | Key claim |
+|---|---|---|
+| Gemini (Architect) | 98 | Two CRITICAL runtime blockers (constant-placement NameError; Stage 4 undefined coord_params/thickness_params) plus MAJOR "no downward mass gradient" -> mass paradox worsens |
+| OpenAI (Explorer) | n/a (XML omitted) | Same two runtime blockers; adds l_sat/DELTA_SCALE self-conflict, entropy weakened by gate_multiplier, Stage2 detach at ep400 makes late training coordinate-only, residual ghost zone [0.08, 0.3] |
+| Claude (Validator) | - | Agrees on both runtime blockers; flags that command_v1_3 DROPPED idea_v4's checklist item "decide whether to lower target_area to an actual weight-reduction goal", and that thickness_gate ~ 1 for epoch >= ~150 so the reachability-assert gap is minor, not an abort |
+
+**Contentions to resolve**
+1. With fact 9 corrected, does the "mass paradox gets worse under W_SPARSE=0" conclusion survive, or must it be withdrawn? What, if anything, remains true about it?
+2. Is the l_sat (knee = 0.9*DELTA_SCALE = 9.0) vs DELTA_SCALE=10.0 conflict actually material? w_sat = 0.01 and the penalty at |delta|=10 is relu(1)^2 = 1.0, so the contribution is 0.01 while f ~ 1.0 and w_phys = 10.0. Quantify before asserting.
+3. Given target_area is FIXED at the initial 24,056.9 mm2, and f = area/target_area is the objective while Mp is the constraint: is command_v1_3's Sec 7 stage-1 pass criterion ("final area <= 24,056.9") the right goal, and can the design meet every section's Mp target at or below baseline area at all? This is the real shape-optimization question.

@@ -1,0 +1,71 @@
+## 1. `command_v1_3.md`와 `idea_v4.md` 간의 정합성 및 발산 분석 (Divergence Analysis)
+
+`command_v1_3.md`는 `idea_v4.md`에서 제안된 핵심 방향성을 구체적인 구현 레벨로 번역하려 시도했으나, 몇 가지 치명적인 설계적 발산(Divergence)과 무리한 확장이 존재합니다.
+
+1. **Mass Objective의 왜곡 (Divergence from Idea A)**
+   * **아이디어**: `idea_v4`는 `l_sparse`를 제거하는 대신 `usv18.compute_mass_loss`가 게이트($z$)에 대해 미분 가능하므로 물리적 질량 손실이 희소성을 유도할 것이라 가정했습니다.
+   * **실제 코드 팩트**: `train_step_multi()`에서 `l_mass = relu(area/target_area - 1)^2`로 정의되어 있습니다. 이는 타겟 면적을 초과할 때만 벌점을 부과하는 **단방향(One-sided) 페널티**입니다. 즉, 면적이 `target_area` 이하로 내려갈 때는 구배(Gradient)가 `0`이 됩니다.
+   * **결과**: `W_SPARSE`를 `0`으로 만들면, 면적을 baseline 이하로 줄이려는 물리적/수학적 압박(Gradient Pressure)이 아예 사라집니다. 이는 질량을 최소화하려는 최적화 목표 자체를 근본적으로 상실하게 만듭니다.
+
+2. **Stage 4의 과도한 단순화 및 미정의 동작 (Over-reach in Stage 4)**
+   * **아이디어**: `idea_v4`는 연속 파트 두께의 풀링을 `part_id`에서 `(part_id, run)` 그룹으로 완화해야 Stage 4가 의미를 가질 수 있다고 지적했습니다.
+   * **실제 코드 팩트**: `command_v1_3` Sec 5.5는 "continuous-part run pooling is a NO-OP unless a cut rule is defined"라며 이 설계를 누락하고 `ENABLE_STAGE4=False`로 기본값을 비활성화해 회피했습니다. 이는 `idea_v4`가 지적한 전제 조건(두께 풀링 그룹 완화) 없이 껍데기뿐인 Stage 4 구조만 추가한 형태입니다.
+
+---
+
+## 2. 최적화 목표 달성 여부 및 런타임 안정성 분석 (Architectural Feasibility)
+
+`command_v1_3.md`를 그대로 적용하면 **런타임 에러로 즉시 중단(Crash)**되거나, 정상 구동하더라도 **질량 최적화에 실패**합니다. 구체적인 아키텍처 결함은 다음과 같습니다.
+
+### A. 런타임 에러 요인 (Runtime Blockers)
+
+1. **상수 정의 위치로 인한 `NameError` (Critical)**
+   * **팩트**: `CGDN17(usv18.CGDN)` 클래스는 파일의 **135라인** 부근에 정의되어 있으며, 클래스 내부 속성으로 `DELTA_SCALE` 등을 참조해야 합니다.
+   * **오류**: `command_v1_3` Sec 1은 새 상수 블록을 **907라인**(`ASWC_STAGE1_END` 바로 아래)에 삽입하라고 지시합니다. Python은 임포트 시점에 클래스 바디를 실행하므로, 클래스 정의보다 770라인 뒤에 있는 상수를 참조하려 하여 즉시 `NameError`가 발생합니다.
+
+2. **Stage 4 옵티마이저 재구축 시 정의되지 않은 변수 참조 (Critical)**
+   * **팩트**: `run_training_multi()` 내의 실제 옵티마이저 타겟 변수 그룹은 `main_params`, `thick_params`, `gate_params`입니다.
+   * **오류**: Sec 5.2의 빌드 스니펫은 존재하지 않는 `coord_params`와 `thickness_params`를 참조합니다. 또한 `main_params` 내에 좌표 디코더와 GNN 백본이 혼재되어 있어, 단순 분리가 불가능하여 즉시 `NameError` 및 `AttributeError`를 유발합니다.
+
+### B. 수학적/최적화 메커니즘 결함 (Optimization Failures)
+
+1. **`l_sat`과 `DELTA_SCALE` 확장 간의 자기모순 (Mathematical Conflict)**
+   * **팩트**: `compute_saturation_loss`는 `relu(|delta| - 0.9*delta_scale)^2`를 계산합니다. `DELTA_SCALE`을 `10.0`으로 늘리면 포화 페널티 임계값(Knee)은 `9.0`이 됩니다.
+   * **오류**: 두께가 가동 범위의 한계(예: [0.700, 2.300])에 도달하려면 `delta`가 `10.0` 근처로 가야 하는데, 이 영역은 `l_sat`에 의해 강한 페널티를 받습니다. 즉, 한계 도달을 돕기 위해 스케일을 키웠으나 동시에 이를 억제하는 상충 관계가 발생합니다.
+   * **게이트 멀티플라이어 누락**: `CGDN17.forward()`에서 `delta_t_part`는 `thickness_gate_value(epoch)`와 곱해집니다. Sec 3.4의 도달 가능성 검증 어설션은 이 에포크 의존적 멀티플라이어를 누락하여 검증 자체가 무력화됩니다.
+
+2. **Mass Paradox의 심화**
+   * `W_SPARSE = 0` 설정으로 인해 후보 패치(Patch1, Patch2)가 제거되더라도, 연속 파트(Continuous parts)의 두께가 증가하여 생기는 면적 증가를 막을 구배가 없습니다. `l_mass`는 `target_area` 이하에서는 작동하지 않으므로, 패치가 탈락하여 강성이 줄어들면 네트워크는 질량을 줄이는 대신 연속 파트 두께를 최대치인 `2.3`까지 채워 강성을 보상하려 할 것입니다. 결과적으로 **질량이 오히려 증가하는 Mass Paradox가 더 심화**됩니다.
+
+---
+
+## 3. Actionable Issues & Severity Levels
+
+### [CRITICAL] Issue 1: Class Body NameError due to Constant Placement
+* **위치**: `AI_design_v1_2.py` Line 135 (`CGDN17` 정의) 및 Line 907 (`ASWC_STAGE1_END`)
+* **현상**: 임포트 시점에 `CGDN17`이 아직 정의되지 않은 `DELTA_SCALE_V13` 등을 참조하여 `NameError` 발생.
+* **해결책**: `v1.3` 상수 블록을 `CGDN17` 클래스 정의 **이전**(예: 파일의 최상단 임포트 블록 바로 아래, Line 30 부근)에 배치해야 합니다.
+
+### [CRITICAL] Issue 2: Stage 4 Optimizer Rebuild Failure
+* **위치**: `run_training_multi()` 내 Stage 4 전환 루프
+* **현상**: `coord_params` 및 `thickness_params` 변수 미정의로 인한 `NameError`.
+* **해결책**: 기존 `main_params`에서 좌표 디코더 파라미터만 분리해내는 명확한 필터링 로직을 작성하고, 실제 존재하는 변수명을 매핑해야 합니다.
+
+### [MAJOR] Issue 3: Absence of Downward Mass Minimization Gradient
+* **위치**: `train_step_multi()` 내 `l_mass` 계산식
+* **현상**: `W_SPARSE = 0` 환경에서 `l_mass`가 단방향 `relu`로 작동하여 목표치 이하의 질량 감소를 유도할 동력이 없음.
+* **해결책**: `W_SPARSE`를 단순히 `0`으로 만들기보다, 타겟 면적 대비 실제 면적 비율 자체를 선형/이차식으로 최소화하는 양방향 또는 하방 지향 질량 손실 함수(`l_mass_linear = area/target_area`)를 도입해야 합니다.
+
+### [MINOR] Issue 4: Reachability Assertion Discrepancy
+* **위치**: `CGDN17.forward()` 및 `report_design_comparison()`
+* **현상**: `thickness_gate_value(epoch)` 멀티플라이어를 누락한 채 두께 도달 범위를 어설션하여 오탐지 발생 가능.
+* **해결책**: 어설션 로직에 에포크 기반 스케일러를 포함하거나 에포크가 충분히 지난 시점(멀티플라이어 $\approx 1.0$)에만 검증을 수행하도록 제한해야 합니다.
+
+---
+
+<confidence score="98"><evidence>AI_design_v1_2.py의 라인 135(CGDN17 정의)와 라인 907(ASWC_STAGE1_END)의 물리적 위치 확인. train_step_multi() 내 l_mass의 relu 식 및 w_sparse_effective 적용 방식 확인. run_training_multi()의 옵티마이저 파라미터 그룹명 확인.</evidence><logic>파이썬의 임포트 타임 클래스 해석 규칙에 따라 전방 선언되지 않은 상수는 NameError를 유발함. W_SPARSE가 0이고 l_mass가 relu(x-1) 형태이면 x &lt; 1 영역에서 구배가 0이 되어 질량 감소 압력이 소멸함.</logic><expertise>GNN 기반 구조 최적화 및 PyTorch 프레임워크 아키텍처 설계 전문가로서 런타임 정적 분석 및 최적화 동역학 검증 수행.</expertise><can_exit>true</can_exit></confidence>
+<semantic_focus>
+1. Constant declaration order causing Class-level NameError
+2. One-sided l_mass penalty combined with zeroed W_SPARSE eliminating mass reduction pressure
+3. Undefined parameter names in Stage 4 optimizer rebuild script
+</semantic_focus>

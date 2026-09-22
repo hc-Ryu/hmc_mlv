@@ -1,0 +1,42 @@
+# CONTEXT: B-pillar 17-section shape optimization with a Conditional Graph Diffusion Network (PyTorch).
+Files: AI_design_v1_2.py (mutable, will be copied to v1_3), uni_section_v18.py (IMMUTABLE, import-only, aliased usv18).
+
+## Observed pathology from a 1500-epoch run of v1_2
+- Total cross-section area 24,056.9 -> 26,497.8 mm2 (+10.1%). "Mass paradox": patches were deleted, continuous parts thickened in compensation, net mass INCREASED.
+- Gate non-convergence: Patch1 mean gate 0.926 (ep680) -> 0.584 (ep1499), monotonically falling, cut off by max_epoch, not converged.
+- Section 11 hard/target Mp = 95.0% (under), section 13 = 105.4% (over).
+- Patch1 survived 4/17 sections; Patch2 0/17.
+
+## idea_v4.md (the IDEA doc, from an earlier deliberation) proposes, in priority order:
+A. Remove l_sparse (W_SPARSE 0.5 -> 0). Rationale: a differentiable mass objective ALREADY exists -- usv18.compute_mass_loss(new_coords, t_final, ...) where t_final = t_raw * z_gate, so area is already differentiable wrt gates. l_sparse = z_open[:, CANDIDATE_PARTS].mean() is a flat, size-independent constant penalty, so for small patches w_sparse >> A_k and deletion is forced even with no physical gain. (Rejected alternative: a PENDING_DELETE rollback state machine.)
+C. Move binarization pressure from W_SPARSE (one-directional, downward only) to ALPHA_ENT (0.01 -> 0.05, symmetric, pushes z to 0 or 1).
+D. T_MIN 0.1 -> 0.7, T_MAX 2.5 -> 2.3. Notes DELTA_SCALE recalibration only as a SECONDARY item.
+B. BINARIZE_THRESHOLD 0.5 -> 0.3, to shrink the "silent death zone" [0.08 (pruning threshold), 0.5 (binarization cut)]. Explicitly limited: gates already STATE_DELETED cannot be revived, so only Patch1 sec 10/11/12 benefit.
+E. Stage 4 (binarize+freeze gates, then re-converge coords+thickness for +200 epochs), plus relaxing continuous-part thickness pooling from a single global part_id group to (part_id, run) groups. All three models agreed "coords only" is insufficient because continuous-part thickness is ONE global variable shared across all 17 sections.
+idea_v4 section 9 lists unverified assumptions: the "section 11 gate = 0.15" figure has no evidence; whether coords hit max_displacement=50mm is unmeasured; whether proposal A alone makes gates converge is unverified.
+
+## command_v1_3.md (the WORK ORDER under review) says:
+- Invariant rule: never edit uni_section_v18.py; override via local constants and CGDN17 subclass attributes; monkey-patching usv18.ALPHA_ENT is FORBIDDEN (2.3), justified by grepping that usv18's ALPHA_ENT/W_SPARSE references live only in usv18.train_step/run_training/visualize_epoch_snapshots, none of which AI_design calls.
+- Sec 1: put a new v1.3 constant block (W_SPARSE_V13=0.0, ALPHA_ENT_V13=0.05, T_MIN_V13=0.7, T_MAX_V13=2.3, FRAC_CLAMP_LO/HI=0.01/0.99, DELTA_SCALE_V13=10.0, BINARIZE_THRESHOLD=0.3, ENABLE_STAGE4=False, STAGE4_EPOCHS=200, STAGE4_LR_SCALE=0.1) "immediately below the ASWC_STAGE1_END = 100 definition block".
+- Sec 3 is the big new addition beyond idea_v4: it argues T_MIN/T_MAX alone are insufficient because the learned variable is delta_t_part = leaky_tanh(net_out) * DELTA_SCALE, an offset in LOGIT space, so reachable thickness is only a window of +/-DELTA_SCALE around the initial thickness's logit. It claims: with (0.7,2.3), clamp 1e-4, D=1.35, Outer Hat (t_init = 2.300 = exactly the new T_MAX) has reachable range [2.2994, 2.3000] i.e. FROZEN; Plate/Inner only [1.100, 2.032] = 58% of the range. Fix adopted: FRAC_CLAMP=[0.01,0.99] AND DELTA_SCALE=10.0, claimed measured reachable [0.700, 2.300] for every part. Requires editing the frac formula in BOTH CGDN17.forward() and report_design_comparison(). Adds assert_thickness_reachability() guard. Sec 3.5 notes l_sat auto-follows (threshold = 0.9*delta_scale = 9.0) and thickness gradients get ~7x stronger.
+- Sec 4: change exists_cand = ... & (z_gate[:, cand_idx] > 0.5) to > BINARIZE_THRESHOLD, add a death-zone diagnostic table.
+- Sec 5: Stage 4, default OFF. Rebuild optimizer as optim.AdamW([{'params': coord_params, 'name':'coord_params', 'lr': lr*0.1}, {'params': thickness_params, ...}]). Sec 5.5 admits continuous-part run pooling is a NO-OP unless a cut rule is defined, and no cut rule is defined.
+- Sec 6 unit tests, Sec 7 go/no-go gates, Sec 8 unverified assumptions.
+
+## VERIFIED CODE FACTS (I read the actual source; treat these as ground truth)
+1. class CGDN17(usv18.CGDN) is defined at AI_design_v1_2.py LINE 135. ASWC_STAGE1_END = 100 is at LINE 907. So the constant block placement in Sec 1 puts T_MIN_V13/DELTA_SCALE_V13 about 770 lines AFTER the class body that must reference them as class attributes (Sec 3.1). Class bodies execute at import time -> NameError.
+2. In CGDN17.forward(): delta_t_raw = self.leaky_tanh(delta_t_raw) * self.DELTA_SCALE, then group-mean pooled into delta_t_part, then delta_t_part = delta_t_part * thickness_gate where thickness_gate = usv18.thickness_gate_value(epoch) = sigmoid(0.6*(epoch-128)). The Sec 3.4 reachability assert does NOT include this multiplier, and also assumes delta can equal exactly +/-DELTA_SCALE.
+3. leaky_tanh(x) = 0.95*tanh(x) + 0.05*x/3. Unbounded (linear leak), so |delta| can exceed DELTA_SCALE, but reaching tanh ~ 1.0 needs large net_out.
+4. compute_saturation_loss(delta_t_part, delta_scale, knee=0.9) = mean(relu(|delta| - 0.9*delta_scale)^2). With D=10, knee=9.0. Reaching the range endpoints requires |delta| about 10 > 9, i.e. exactly the region l_sat penalizes.
+5. The optimizer in run_training_multi() has groups named 'main', 'thickness_decoder', 'gate_params' built from variables main_params, thick_params, gate_params. There are NO variables named coord_params or thickness_params anywhere in the file. Sec 5.2's rebuild snippet references undefined names, and 'main' mixes the coordinate decoder with the GNN trunk.
+6. l_sparse = z_open[:, CANDIDATE_PARTS].mean() and contrib_entropy = (usv18.ALPHA_ENT * gate_multiplier) * entropy both exist in train_step_multi() as described. w_sparse_effective = weights['w_sparse'] * gate_multiplier; gate_multiplier = sigmoid(SPARSE_K*(TAU_GATE - mp_rel_err)).
+7. report_design_comparison() line 712 has frac = torch.clamp((t_init-t_min)/(t_max-t_min), 1e-4, 1.0-1e-4) and line 718 exists_cand = (state != STATE_DELETED) & (z_gate[:, cand_idx] > 0.5) -- both as the doc states.
+8. In train_step_multi(): if epoch >= ASWC_STAGE2_END: (=400) continuous-part t_final is .detach()ed. ASWC_STAGE3_END=500 is the DEFAULT max_epochs (argparse default), though the reported run was 1500.
+9. target_area defaults to the INITIAL cross-section area (24,056.9), and l_mass = relu(area/target_area - 1)^2 -- a ONE-SIDED penalty that is exactly ZERO for any area below the initial. So with W_SPARSE=0 there is NO gradient pressure to reduce area below baseline; the mass term only punishes exceeding it.
+
+## THE QUESTION
+Two parts:
+(1) Does command_v1_3.md faithfully and correctly reflect idea_v4.md? Where does it diverge, over-reach, or drop something?
+(2) Will implementing command_v1_3.md on AI_design_v1_2.py actually achieve the shape-optimization goal (reduce or hold mass while every section meets its Mp target and the manufactured binarized design matches the trained one)?
+
+Be concrete and cite the code facts. Point out defects that would break at runtime, and mechanisms that would make the outcome fail even if the code runs. Respond in KOREAN.
