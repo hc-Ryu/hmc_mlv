@@ -1,0 +1,27 @@
+output            : Plate intrusion, sec 9 (mm), training samples = 171
+univariate PDD    : m = 2 per section;  all-17 S = 1 PDD R² training / LOOCV = 0.8500 / 0.7361
+S_full   = R² of Mp_j alone (shared + own information; sections overlap, so Σ > 100 %)
+S_indep  = R²(all 17) − R²(all but j) (information no other section carries)
+*_loo    = same with leave-one-out predictions (negative = no predictive gain)
+S_full range  : 63.7 – 69.5 %   (Σ = 1114 %)
+S_indep range : 0.01 – 2.83 %   (Σ = 12.2 %)
+
+sorted by S_full:
+variable  sec  S_full_pct  S_full_loo_pct  S_indep_pct  S_indep_loo_pct
+Mp_sec13   13       69.51           68.22         2.83             4.37
+Mp_sec16   16       68.15           66.68         0.35            -0.13
+Mp_sec15   15       67.08           65.22         1.06             0.44
+Mp_sec09    9       66.95           65.36         1.88             1.72
+Mp_sec12   12       66.45           65.11         0.74             0.50
+Mp_sec14   14       66.30           64.68         0.66             0.17
+Mp_sec04    4       65.21           63.70         0.67            -0.03
+Mp_sec11   11       65.19           63.63         0.22            -0.69
+Mp_sec08    8       65.05           63.51         0.42            -0.08
+Mp_sec05    5       64.90           63.26         0.66             0.75
+Mp_sec02    2       64.54           62.97         0.20            -0.56
+Mp_sec01    1       64.46           62.86         0.06            -0.52
+Mp_sec03    3       64.33           62.72         0.58             0.39
+Mp_sec06    6       64.20           62.50         0.01            -1.13
+Mp_sec10   10       64.07           62.35         1.27             1.37
+Mp_sec00    0       63.80           62.05         0.01            -1.05
+Mp_sec07    7       63.73           62.11         0.56             0.29

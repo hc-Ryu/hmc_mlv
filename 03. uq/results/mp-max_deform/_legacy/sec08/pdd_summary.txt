@@ -1,0 +1,31 @@
+input             : section Mp, sec 0–16 (kN·m), 267 samples
+output            : Plate intrusion, sec 8 (mm)
+PDD               : N = 17, m = 2, S = 1, coefficients = 35, training samples = 171
+mean  (FEA / PDD c0 / all-sample surrogate): 117.6861 / 117.6650 / 117.6650
+var   (FEA / all-sample surrogate)         : 14.5812 / 12.2713
+R² training / LOOCV       : 0.9080 / 0.8362
+RMSE LOOCV                : 1.5409 mm  (1.31 % of mean)
+sum of S (structural + correlative) : 1.0000  (structural only Σ S^U = 14.3037)
+input correlation ρ (min / mean / max off-diag): 0.943 / 0.979 / 1.000
+input PCA variance share (PC1..PC3) : 98.1%, 0.4%, 0.3%
+condition number of basis matrix    : 224
+
+covariance-based sensitivity (descending):
+variable         S       S_pct  S_structural_pct  S_correlative_pct
+Mp_sec08  0.995168   99.516771        134.012163         -34.495393
+Mp_sec09  0.985317   98.531728        115.304576         -16.772849
+Mp_sec13  0.815763   81.576275         74.213713           7.362562
+Mp_sec12  0.493714   49.371355         28.963029          20.408326
+Mp_sec05  0.346324   34.632436         24.100206          10.532230
+Mp_sec14  0.290659   29.065893          9.991609          19.074285
+Mp_sec16  0.272456   27.245643          8.579758          18.665885
+Mp_sec15  0.259670   25.967021          9.683340          16.283681
+Mp_sec06  0.093649    9.364867          1.941089           7.423778
+Mp_sec11  0.084894    8.489432          3.103671           5.385761
+Mp_sec01  0.033254    3.325403          0.458173           2.867230
+Mp_sec04 -0.004261   -0.426055         44.900341         -45.326395
+Mp_sec07 -0.091513   -9.151266          9.291041         -18.442307
+Mp_sec00 -0.121768  -12.176773          1.910976         -14.087749
+Mp_sec02 -0.433330  -43.332951         25.470317         -68.803269
+Mp_sec10 -0.521178  -52.117833         36.060998         -88.178831
+Mp_sec03 -2.498819 -249.881947        902.383193       -1152.265140

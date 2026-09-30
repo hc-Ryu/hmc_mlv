@@ -1,0 +1,10 @@
+  제어   18.0 mm    339.5 kN  Plate 침입  11.0 mm  접촉 90쌍  (24s)
+  제어   35.0 mm    299.3 kN  Plate 침입  14.0 mm  접촉 90쌍  (215s)
+  제어   55.0 mm    360.3 kN  Plate 침입  23.3 mm  접촉 97쌍  (228s)
+  제어   75.0 mm    413.8 kN  Plate 침입  34.5 mm  접촉 111쌍  (242s)
+  제어   95.0 mm    481.3 kN  Plate 침입  50.1 mm  접촉 134쌍  (259s)
+  제어  115.0 mm    594.0 kN  Plate 침입  68.5 mm  접촉 153쌍  (308s)
+  제어  130.2 mm    727.4 kN  Plate 침입  85.5 mm  접촉 175쌍  (675s)
+  제어  150.2 mm    928.5 kN  Plate 침입 107.8 mm  접촉 189쌍  (722s)
+  종료(하중 목표 도달): 제어 158.2 mm, Plate 침입 116.3 mm, 1006 kN
+done 729s status=snap_through F_lim1=339 kN

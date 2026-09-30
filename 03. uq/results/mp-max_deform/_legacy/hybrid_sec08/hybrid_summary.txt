@@ -1,0 +1,22 @@
+output            : Plate intrusion, sec 8 (mm), training samples = 185 (same samples for every model)
+PDD               : S = 1, m = 2, basis orthonormal w.r.t. each input's distribution over 267 samples
+
+LOOCV comparison:
+                                  model  n_inputs  coefficients  R2_train  R2_loocv  RMSE_loocv_mm
+                               Mp PC1–3         3             7     0.846     0.833          1.539
+           Mp PC1–3 + t_Plate + t_Inner         5            11     0.911     0.897          1.204
+             Mp PC1 + t_Plate + t_Inner         3             7     0.909     0.900          1.191
+                         Mp 17 sections        17            35     0.905     0.838          1.513
+     Mp 17 sections + t_Plate + t_Inner        19            39     0.943     0.896          1.214
+thickness 3 (t_Outer, t_Plate, t_Inner)         3             7     0.908     0.899          1.193
+                    design 22 variables        22            45     0.946     0.906          1.154
+
+sensitivity of 'Mp PC1–3 + t_Plate + t_Inner' (covariance-based, %):
+   term  S_pct  S_structural_pct
+    PC1  74.78             65.56
+t_Plate  12.98              8.82
+t_Inner  11.26              5.47
+    PC2   1.03              0.19
+    PC3  -0.04              0.06
+
+for reference, 'Mp PC1–3' alone: PC1 93.3%, PC2 6.7%, PC3 0.1%

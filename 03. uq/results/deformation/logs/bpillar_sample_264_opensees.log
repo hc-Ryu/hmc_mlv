@@ -1,0 +1,433 @@
+WARNING ZeroLength::setDomain(): Element 5000001 has L= 2.48524, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000002 has L= 2.23181, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000003 has L= 1.82654, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000004 has L= 1.8282, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000005 has L= 1.76352, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000006 has L= 1.76352, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000007 has L= 1.8282, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000008 has L= 1.82654, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000009 has L= 2.23181, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000010 has L= 2.48524, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000011 has L= 2.33853, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000012 has L= 2.20018, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000013 has L= 1.94144, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000014 has L= 1.96707, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000015 has L= 1.95478, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000016 has L= 1.95478, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000017 has L= 1.96707, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000018 has L= 1.94144, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000019 has L= 2.20018, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000020 has L= 2.33853, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000021 has L= 2.27348, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000022 has L= 2.23343, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000023 has L= 2.11527, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000024 has L= 2.18007, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000025 has L= 2.21695, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000026 has L= 2.21695, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000027 has L= 2.18007, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000028 has L= 2.11527, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000029 has L= 2.23343, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000030 has L= 2.27348, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000031 has L= 2.31801, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000032 has L= 2.32979, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000033 has L= 2.32891, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000034 has L= 2.50025, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000035 has L= 2.64037, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000036 has L= 2.64037, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000037 has L= 2.50025, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000038 has L= 2.32891, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000039 has L= 2.32979, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000040 has L= 2.31801, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000041 has L= 2.3777, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000042 has L= 2.48555, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000043 has L= 2.63876, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000044 has L= 2.80506, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000045 has L= 2.91066, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000046 has L= 2.91066, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000047 has L= 2.80506, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000048 has L= 2.63876, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000049 has L= 2.48555, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000050 has L= 2.3777, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000051 has L= 2.3136, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000052 has L= 2.51345, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000053 has L= 2.81848, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000054 has L= 2.895, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000055 has L= 2.97882, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000056 has L= 2.97882, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000057 has L= 2.895, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000058 has L= 2.81848, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000059 has L= 2.51345, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000060 has L= 2.3136, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000061 has L= 2.22228, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000062 has L= 2.38133, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000063 has L= 2.73934, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000064 has L= 2.84483, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000065 has L= 2.97513, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000066 has L= 2.97513, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000067 has L= 2.84483, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000068 has L= 2.73934, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000069 has L= 2.38133, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000070 has L= 2.22228, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000071 has L= 2.14743, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000072 has L= 2.30756, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000073 has L= 2.67688, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000074 has L= 2.82844, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000075 has L= 2.93778, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000076 has L= 2.93778, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000077 has L= 2.82844, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000078 has L= 2.67688, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000079 has L= 2.30756, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000080 has L= 2.14743, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000081 has L= 2.11869, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000082 has L= 2.25191, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000083 has L= 2.60355, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000084 has L= 2.79035, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000085 has L= 2.83641, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000086 has L= 2.83641, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000087 has L= 2.79035, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000088 has L= 2.60355, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000089 has L= 2.25191, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000090 has L= 2.11869, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 17024.3 (max: 1e-06, Norm deltaR: 4.25599e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -1751.27
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 93861.7 (max: 1e-06, Norm deltaR: 1.73935e+09)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 2011.83
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 3758.08 (max: 1e-06, Norm deltaR: 1.15343e+08)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 10743.9
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 16791.5 (max: 1e-06, Norm deltaR: 3.5872e+08)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1811.23
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 1.51804e+68 (max: 1e-06, Norm deltaR: 4.55488e+71)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -1.35401e+67
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 212130 (max: 1e-06, Norm deltaR: 7.10785e+07)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -519.418
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 2362.39 (max: 1e-06, Norm deltaR: 8.63473e+07)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -3179.95
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 2926.91 (max: 1e-06, Norm deltaR: 1.34375e+08)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1846.42
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 1.80227e+66 (max: 1e-06, Norm deltaR: 1.48874e+70)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -6.45988e+64
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 17342.7 (max: 1e-06, Norm deltaR: 5.35105e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 887.68
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 433913 (max: 1e-06, Norm deltaR: 5.19731e+08)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -523.214
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 15226.6 (max: 1e-06, Norm deltaR: 5.87682e+08)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -2768.97
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 1.1832e+70 (max: 1e-06, Norm deltaR: 9.85645e+73)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -1.15351e+69
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 171106 (max: 1e-06, Norm deltaR: 1.05056e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -295.534
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 89760.1 (max: 1e-06, Norm deltaR: 2.2597e+09)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -7728.11
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 376209 (max: 1e-06, Norm deltaR: 7.32013e+07)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -954.111
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 2912.92 (max: 1e-06, Norm deltaR: 7.68614e+07)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 305.262
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 71332.9 (max: 1e-06, Norm deltaR: 4.61158e+08)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -1210.99
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 2.21662e+65 (max: 1e-06, Norm deltaR: 1.86147e+69)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -5.59819e+64
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 19058.4 (max: 1e-06, Norm deltaR: 5.36743e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 727.467
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 17796.3 (max: 1e-06, Norm deltaR: 2.47769e+08)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -40831.9
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 84144.7 (max: 1e-06, Norm deltaR: 6.00872e+08)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 906.066
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 9.92552e+65 (max: 1e-06, Norm deltaR: 7.68413e+69)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -3.8245e+65
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 41403.2 (max: 1e-06, Norm deltaR: 7.2331e+07)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -580.696
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000091 has L= 7.79672, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000092 has L= 7.95459, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000093 has L= 51.2382, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000094 has L= 7.65087, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000095 has L= 48.5053, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 120137 (max: 1e-06, Norm deltaR: 5.84792e+07)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -14.4569
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 39662.4 (max: 1e-06, Norm deltaR: 9.44078e+08)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 287880
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 2111.43 (max: 1e-06, Norm deltaR: 1.89915e+08)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1082.26
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 2.48701e+78 (max: 1e-06, Norm deltaR: 1.83522e+82)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -2.69444e+77
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 34647.5 (max: 1e-06, Norm deltaR: 1.49808e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -528.75
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000096 has L= 55.1295, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000097 has L= 51.8419, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 37062.4 (max: 1e-06, Norm deltaR: 3.99848e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 764.369
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000098 has L= 8.10709, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000099 has L= 59.2327, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000100 has L= 7.79672, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000101 has L= 21.3686, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000102 has L= 20.9645, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 34657.6 (max: 1e-06, Norm deltaR: 5.26544e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 4126.96
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 1056.79 (max: 1e-06, Norm deltaR: 9.02977e+07)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1283.07
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 121022 (max: 1e-06, Norm deltaR: 3.53346e+09)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1101.12
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 7.29923e+76 (max: 1e-06, Norm deltaR: 5.6653e+80)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -2.62683e+75
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000103 has L= 63.5975, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000104 has L= 7.95459, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000105 has L= 21.8176, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 42171.9 (max: 1e-06, Norm deltaR: 1.03226e+09)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -4153.14
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000106 has L= 21.8176, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000107 has L= 58.5317, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000108 has L= 16.8887, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000109 has L= 61.7339, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000110 has L= 55.455, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000111 has L= 7.49587, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 88802.7 (max: 1e-06, Norm deltaR: 1.36415e+09)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 2820.88
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000112 has L= 17.2972, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000113 has L= 7.65087, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 24053.5 (max: 1e-06, Norm deltaR: 6.51158e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1176.68
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 15993.1 (max: 1e-06, Norm deltaR: 7.60662e+07)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -41.0638
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 16.8008 (max: 1e-06, Norm deltaR: 349276)
+AcceleratedNewton::solveCurrentStep() -The ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 402.036
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 1.79751e+72 (max: 1e-06, Norm deltaR: 1.59448e+76)
+ModifiedNewton::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1.56641e+70
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 21522.7 (max: 1e-06, Norm deltaR: 4.25843e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -378.759
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000114 has L= 17.7019, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000115 has L= 54.4868, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000116 has L= 48.2921, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000117 has L= 51.4299, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 103869 (max: 1e-06, Norm deltaR: 6.83295e+07)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 613.101
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000118 has L= 8.27539, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000119 has L= 20.9645, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000120 has L= 9.90602, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000121 has L= 18.0777, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000122 has L= 20.571, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000123 has L= 54.6083, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000124 has L= 7.49587, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000125 has L= 7.32157, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000126 has L= 63.1434, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000127 has L= 16.1974, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000128 has L= 57.5383, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 39060.6 (max: 1e-06, Norm deltaR: 9.06596e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -4418.43
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000129 has L= 8.47441, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000130 has L= 16.5402, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000131 has L= 7.16635, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000132 has L= 9.67817, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000133 has L= 7.32157, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000134 has L= 58.3858, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000135 has L= 20.571, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000136 has L= 22.3272, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000137 has L= 56.8183, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000138 has L= 58.7162, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000139 has L= 66.9709, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000140 has L= 15.8914, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 13263.1 (max: 1e-06, Norm deltaR: 3.70365e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 274.427
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 5533.39 (max: 1e-06, Norm deltaR: 1.47772e+08)
+NewtonLineSearch::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -9406.79
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000141 has L= 16.8887, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000142 has L= 60.7368, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000143 has L= 63.1369, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000144 has L= 53.0335, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000145 has L= 51.5158, which is greater than the tolerance
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 50 iterations  current Norm: 10423 (max: 1e-06, Norm deltaR: 2.22317e+08)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor -1174.03
+OpenSees > analyze failed, returned: -3 error flag
+WARNING ZeroLength::setDomain(): Element 5000146 has L= 65.3337, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000147 has L= 21.3686, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000148 has L= 10.1604, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000149 has L= 56.3279, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000150 has L= 52.307, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000151 has L= 8.67137, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000152 has L= 7.04876, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000153 has L= 58.5379, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000154 has L= 10.4287, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000155 has L= 60.9627, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000156 has L= 66.1381, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000157 has L= 53.3948, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000158 has L= 56.5946, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000159 has L= 50.7205, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000160 has L= 20.1461, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000161 has L= 9.47257, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000162 has L= 8.10709, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000163 has L= 53.5492, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000164 has L= 55.1409, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000165 has L= 18.4142, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000166 has L= 51.9999, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000167 has L= 15.8914, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000168 has L= 56.154, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000169 has L= 34.2998, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000170 has L= 20.1461, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000171 has L= 53.2885, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000172 has L= 7.16635, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000173 has L= 51.0092, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000174 has L= 52.1682, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000175 has L= 17.2972, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000176 has L= 63.8132, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000177 has L= 33.6922, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000178 has L= 22.7484, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000179 has L= 15.5788, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000180 has L= 44.919, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000181 has L= 45.1256, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000182 has L= 15.5788, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000183 has L= 60.3597, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000184 has L= 28.6723, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000185 has L= 35.6938, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000186 has L= 27.9618, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000187 has L= 34.9829, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000188 has L= 57.6488, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000189 has L= 34.9829, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000190 has L= 8.82421, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000191 has L= 27.3233, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000192 has L= 44.3848, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000193 has L= 44.4863, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000194 has L= 45.1989, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000195 has L= 64.7735, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000196 has L= 49.8098, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000197 has L= 34.2998, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000198 has L= 61.4328, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000199 has L= 54.7985, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000200 has L= 36.3748, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000201 has L= 57.3708, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000202 has L= 33.6922, which is greater than the tolerance
+WARNING ZeroLength::setDomain(): Element 5000203 has L= 33.0425, which is greater than the tolerance

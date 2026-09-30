@@ -1,0 +1,7 @@
+  제어   17.0 mm    330.7 kN  Plate 침입  10.4 mm  접촉 90쌍  (47s)
+  제어   32.5 mm    285.9 kN  Plate 침입  12.5 mm  접촉 90쌍  (268s)
+  제어   52.5 mm    337.8 kN  Plate 침입  21.3 mm  접촉 97쌍  (291s)
+  제어   72.5 mm    392.3 kN  Plate 침입  30.9 mm  접촉 105쌍  (317s)
+  수렴 실패: 제어 변위 86.9 mm에서 중단
+  종료(제어 변위 상한 도달): 제어 86.9 mm, Plate 침입 41.9 mm, 442 kN
+done 953s status=not_reached F_lim1=331 kN

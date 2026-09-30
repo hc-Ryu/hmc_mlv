@@ -1,0 +1,39 @@
+output            : Plate intrusion, sec 9 (mm), training samples = 177
+input             : top 3 principal components of standardized section Mp (explained 98.8 %: 98.1%, 0.4%, 0.3%)
+PDD               : S = 2, m = 2, coefficients = 19
+  S = 1: coefficients   7,  R² training / LOOCV = 0.7494 / 0.7266,  RMSE LOOCV = 1.9671 mm
+  S = 2: coefficients  19,  R² training / LOOCV = 0.7852 / 0.7037,  RMSE LOOCV = 2.0481 mm
+var   (FEA / surrogate on all samples) : 14.2356 / 10.7773
+sum of S : 1.0000   (structural Σ S^U = 1.0837; ≈ 1 means PCs behave independently)
+
+sensitivity by term (descending):
+   term      S  S_pct  S_structural_pct  S_correlative_pct
+    PC1  0.855 85.526            89.678             -4.152
+    PC2  0.130 13.036            13.095             -0.059
+PC1×PC3  0.011  1.117             2.295             -1.178
+PC2×PC3  0.002  0.215             0.824             -0.609
+    PC3  0.002  0.178             0.152              0.026
+PC1×PC2 -0.001 -0.071             2.330             -2.401
+
+PC loadings (sections × PCs; last row = explained variance %):
+         variable    PC1    PC2    PC3
+         Mp_sec00  0.243 -0.160 -0.038
+         Mp_sec01  0.244 -0.166 -0.063
+         Mp_sec02  0.245 -0.173 -0.039
+         Mp_sec03  0.245 -0.170 -0.039
+         Mp_sec04  0.244 -0.146 -0.041
+         Mp_sec05  0.244 -0.158 -0.033
+         Mp_sec06  0.244 -0.157 -0.046
+         Mp_sec07  0.244 -0.139 -0.036
+         Mp_sec08  0.244 -0.174  0.002
+         Mp_sec09  0.244 -0.041 -0.018
+         Mp_sec10  0.243 -0.018 -0.043
+         Mp_sec11  0.242  0.004  0.050
+         Mp_sec12  0.241  0.008 -0.154
+         Mp_sec13  0.240  0.260 -0.128
+         Mp_sec14  0.239  0.132  0.517
+         Mp_sec15  0.238  0.432  0.637
+         Mp_sec16  0.238  0.702 -0.518
+explained_var_pct 98.058  0.424  0.348
+
+main effect P10→P90 : PC1 -8.420 mm, PC2 -3.097 mm, PC3 -0.142 mm  (+ = output increases as the PC score increases)

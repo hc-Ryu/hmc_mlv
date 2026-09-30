@@ -1,0 +1,8 @@
+model,n_inputs,coefficients,R2_train,R2_loocv,RMSE_loocv_mm
+Mp PC1–3,3,7,0.738729,0.716277,1.99481
+Mp PC1–3 + t_Plate + t_Inner,5,11,0.841572,0.817679,1.59909
+Mp PC1 + t_Plate + t_Inner,3,7,0.838811,0.821705,1.58133
+Mp 17 sections,17,35,0.841614,0.732472,1.93704
+Mp 17 sections + t_Plate + t_Inner,19,39,0.900474,0.821437,1.58252
+"thickness 3 (t_Outer, t_Plate, t_Inner)",3,7,0.85511,0.841285,1.49198
+design 22 variables,22,45,0.910151,0.842417,1.48665
