@@ -1,0 +1,40 @@
+output            : Plate intrusion, sec = max  (Plate max intrusion (mm)) at absorbed energy 20 kJ
+PDD               : N = 22, m = 2, S = 1, coefficients = 45, training samples = 267  (stable 65, snap_through 202)
+mean  (FEA / PDD c0 / MC) : 21.9701 / 21.9709 / 21.9719
+var   (FEA / PDD Σc² / MC): 1.3661 / 1.1623 / 1.1791
+std   (FEA / PDD)         : 1.1688 / 1.0781
+R² training / LOOCV       : 0.8255 / 0.7443
+RMSE LOOCV                : 0.5899 mm  (2.69 % of mean)
+sum of S1                 : 1.0000
+degree share (k=1..m)     : 89.5%, 10.5%
+
+degree comparison (LOOCV, reference):
+  m = 1 (계수  23): LOOCV R² = 0.6800, RMSE = 0.6599 mm
+  m = 2 (계수  45): LOOCV R² = 0.7443, RMSE = 0.5899 mm
+  m = 3 (계수  67): LOOCV R² = 0.7141, RMSE = 0.6238 mm
+  m = 4 (계수  89): LOOCV R² = 0.6789, RMSE = 0.6611 mm
+
+first-order Sobol indices (descending):
+variable       S1    S1_pct  var_contrib
+ t_Plate 0.756064 75.606408     0.878808
+ t_Outer 0.151209 15.120927     0.175757
+ t_Inner 0.029267  2.926709     0.034018
+ d_sec08 0.023909  2.390873     0.027790
+ d_sec07 0.005980  0.597958     0.006950
+ d_sec02 0.005814  0.581426     0.006758
+ d_sec09 0.005495  0.549517     0.006387
+ d_sec10 0.004685  0.468523     0.005446
+ d_sec12 0.003164  0.316410     0.003678
+ d_sec11 0.002932  0.293199     0.003408
+ d_sec03 0.002732  0.273199     0.003176
+t_Patch3 0.001480  0.148034     0.001721
+ d_sec04 0.001408  0.140832     0.001637
+ d_sec14 0.001326  0.132593     0.001541
+ d_sec05 0.001286  0.128650     0.001495
+ d_sec00 0.001231  0.123080     0.001431
+t_Patch2 0.001077  0.107731     0.001252
+ d_sec06 0.000309  0.030858     0.000359
+t_Patch1 0.000218  0.021800     0.000253
+ d_sec01 0.000209  0.020943     0.000243
+t_Patch4 0.000193  0.019307     0.000224
+ d_sec13 0.000010  0.001025     0.000012
