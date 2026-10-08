@@ -5,6 +5,8 @@
     python "mp-max_deform_PDD+Sensitivity_v23.py"                 # 에너지 수준 × sec 8, 9 각각 surrogate
     python "mp-max_deform_PDD+Sensitivity_v23.py" --energies 20   # 20 kJ(기준값)만
     python "mp-max_deform_PDD+Sensitivity_v23.py" --m 1 --secs 8  # 차수 1, sec 8만
+    python "mp-max_deform_PDD+Sensitivity_v23.py" --extra t_Patch4 --out-dir "results/v23/mp-max_deform/with_t_Patch4"
+                                                                  # 입력에 t_Patch4 추가 (비교용)
 
 입력 X (3개)
     PC1     : results/v23/mp/bpillar_sample_XXX_mp.csv 의 섹션 0–14 Mp를 표준화한 뒤의 제1주성분 점수
@@ -103,7 +105,7 @@ def load_inputs(mp_dir, design_csv, out) -> tuple[pd.DataFrame, np.ndarray, floa
     print(f"[Mp PCA] 설명 분산 PC1–3 = {', '.join(f'{100 * s:.1f} %' for s in share)}; "
           f"PC1과 상관 큰 설계변수: " + ", ".join(f"{v} {r:+.3f}" for v, r in
                                          corr["PC1"].reindex(corr["PC1"].abs().nlargest(3).index).items()))
-    Xdf = pd.concat([pcs["PC1"], xi[["t_Plate", "t_Inner"]]], axis=1, join="inner")[list(INPUTS)].sort_index()
+    Xdf = pd.concat([pcs["PC1"], xi[list(INPUTS[1:])]], axis=1, join="inner")[list(INPUTS)].sort_index()
     return Xdf, V[:, 0], float(share[0])
 
 
@@ -318,7 +320,7 @@ def run_case(sec, E, Xdf, y_s, st, marg, loading, share, m, out) -> dict:
     rmse_loo = float(np.sqrt(np.mean((y - y_loo) ** 2)))
     lines = [
         f"input             : PC1 of standardized section Mp ({100 * share:.1f} % of Mp variance, "
-        f"loading {loading.min():.3f}–{loading.max():.3f}), t_Plate ξ, t_Inner ξ; {len(Xdf)} samples",
+        f"loading {loading.min():.3f}–{loading.max():.3f}), " + "".join(f"{v} ξ, " for v in INPUTS[1:]) + f"{len(Xdf)} samples",
         f"output            : {ylab} at absorbed energy {E:g} kJ",
         f"PDD               : N = {N}, m = {m}, S = 1, coefficients = {L}, training samples = {n}"
         f"  (stable {n - n_snap}, snap_through {n_snap})",
@@ -349,12 +351,16 @@ def main():
     ap.add_argument("--secs", type=int, nargs="+", default=list(OUT_SECS), help="출력 섹션 (섹션마다 surrogate 하나)")
     ap.add_argument("--energies", type=float, nargs="+", default=None,
                     help="학습할 에너지 수준 (kJ, 기본: FEM 결과에 있는 모든 수준)")
+    ap.add_argument("--extra", nargs="+", default=[],
+                    help="PC1·t_Plate·t_Inner에 더할 두께 입력 (예: t_Patch4) — --out-dir를 따로 주어 비교")
     ap.add_argument("--mp-dir", default=str(MP_DIR))
     ap.add_argument("--design", default=str(DESIGN_CSV), help="설계변수 ξ CSV (t_Plate, t_Inner)")
     ap.add_argument("--deform-dir", default=str(DEFORM_DIR))
     ap.add_argument("--out-dir", default=str(OUT_DIR))
     a = ap.parse_args()
 
+    global INPUTS
+    INPUTS = INPUTS + tuple(v for v in a.extra if v not in INPUTS)
     root = Path(a.out_dir)
     Xdf, loading, share = load_inputs(a.mp_dir, a.design, root)
     X_all = Xdf.to_numpy()

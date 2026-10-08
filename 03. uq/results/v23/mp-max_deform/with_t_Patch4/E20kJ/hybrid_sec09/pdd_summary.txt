@@ -1,0 +1,16 @@
+input             : PC1 of standardized section Mp (91.7 % of Mp variance, loading 0.243–0.265), t_Plate ξ, t_Inner ξ, t_Patch4 ξ, 267 samples
+output            : Plate intrusion, sec 9 (mm) at absorbed energy 20 kJ
+PDD               : N = 4, m = 2, S = 1, coefficients = 9, training samples = 267  (stable 65, snap_through 202)
+mean  (FEA / PDD c0 / all-sample surrogate): 21.8866 / 21.8866 / 21.8866
+var   (FEA / all-sample surrogate)         : 1.2733 / 0.9668
+R² training / LOOCV       : 0.7621 / 0.7444
+RMSE LOOCV                : 0.5695 mm  (2.60 % of mean)
+sum of S                  : 1.0000  (structural Σ S^U = 0.7902)
+input correlation ρ       : PC1–t_Plate +0.383, PC1–t_Inner +0.347, PC1–t_Patch4 +0.236, t_Plate–t_Inner +0.008, t_Plate–t_Patch4 -0.013, t_Inner–t_Patch4 +0.032
+
+covariance-based sensitivity (descending):
+variable      S   S_pct  S_structural_pct  S_correlative_pct
+ t_Plate 0.5681 56.8074           44.9679            11.8395
+     PC1 0.3822 38.2188           28.0071            10.2117
+ t_Inner 0.0256  2.5551            1.0495             1.5056
+t_Patch4 0.0242  2.4187            4.9958            -2.5771
